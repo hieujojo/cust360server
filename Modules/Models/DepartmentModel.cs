@@ -1,3 +1,4 @@
+using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 using CRM.Api.Infrastructure.MongoDB;
 
@@ -5,13 +6,13 @@ namespace CRM.Api.Modules.Models;
 
 /// <summary>Phòng ban của tổ chức. Collection: departments.</summary>
 [BsonIgnoreExtraElements]
-public sealed class Department : IOrganizationDocument
+public sealed class Department : IOrganizationDocument , ISoftDeletable
 {
     [BsonId]
-    [BsonRepresentation(MongoDB.Bson.BsonType.ObjectId)]
-    public string id { get; set; } = string.Empty;
+    [BsonRepresentation(BsonType.ObjectId)]
+    public string id { get; set; } = ObjectId.GenerateNewId().ToString();
 
-    [BsonRepresentation(MongoDB.Bson.BsonType.ObjectId)]
+    
     public string organizationId { get; set; } = string.Empty;
 
     public string name { get; set; } = string.Empty;
@@ -23,7 +24,7 @@ public sealed class Department : IOrganizationDocument
     public DateTime createdAt { get; set; } = DateTime.UtcNow;
     public DateTime updatedAt { get; set; } = DateTime.UtcNow;
 
-    [BsonRepresentation(MongoDB.Bson.BsonType.ObjectId)]
+    
     public string? createdBy { get; set; }
 
     // Bridge camelCase → IOrganizationDocument (PascalCase)
@@ -37,5 +38,11 @@ public sealed class Department : IOrganizationDocument
     {
         get => organizationId;
         set => organizationId = value;
+    }
+
+    bool ISoftDeletable.IsDeleted
+    {
+        get => isDeleted;
+        set => isDeleted = value;
     }
 }

@@ -57,7 +57,11 @@ public sealed class TeamController : ControllerBase
                 _                => BadRequest(new { result.ErrorCode, result.ErrorMessage })
             };
 
-        return CreatedAtAction(nameof(GetById), new { departmentId, id = result.Data!.Id }, result.Data);
+        if (result.Data is null)
+            return StatusCode(500, new { ErrorCode = "INTERNAL_ERROR", ErrorMessage = "Unexpected null result." });
+
+        return CreatedAtAction(nameof(GetById), new { id = result.Data.Id }, result.Data);
+
     }
 
     /// <summary>Cập nhật team. Chỉ Admin/Owner.</summary>

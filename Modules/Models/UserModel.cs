@@ -1,17 +1,18 @@
 using MongoDB.Bson.Serialization.Attributes;
 using CRM.Api.Infrastructure.MongoDB;
+using MongoDB.Bson;
 
 namespace CRM.Api.Modules.Models;
 
 /// <summary>Nhân viên nội bộ của tổ chức. Collection: users.</summary>
 [BsonIgnoreExtraElements]
-public sealed class User : IOrganizationDocument
+public sealed class User : IOrganizationDocument , ISoftDeletable
 {
     [BsonId]
-    [BsonRepresentation(MongoDB.Bson.BsonType.ObjectId)]
-    public string id { get; set; } = string.Empty;
+    [BsonRepresentation(BsonType.ObjectId)]
+    public string id { get; set; } = ObjectId.GenerateNewId().ToString();
 
-    [BsonRepresentation(MongoDB.Bson.BsonType.ObjectId)]
+    
     public string organizationId { get; set; } = string.Empty;
 
     /// <summary>Unique trong org.</summary>
@@ -27,15 +28,14 @@ public sealed class User : IOrganizationDocument
     public int role { get; set; }
 
     /// <summary>Bắt buộc với role = 3.</summary>
-    [BsonRepresentation(MongoDB.Bson.BsonType.ObjectId)]
+    
     public string? departmentId { get; set; }
 
     /// <summary>Team thuộc phòng ban. Tùy chọn với mọi role.</summary>
-    [BsonRepresentation(MongoDB.Bson.BsonType.ObjectId)]
+    
     public string? teamId { get; set; }
 
     public string displayName { get; set; } = string.Empty;
-    public string jobTitle { get; set; } = string.Empty;
     public string? phone { get; set; }
     public string? avatarUrl { get; set; }
 
@@ -50,8 +50,8 @@ public sealed class User : IOrganizationDocument
 
     public DateTime createdAt { get; set; } = DateTime.UtcNow;
     public DateTime updatedAt { get; set; } = DateTime.UtcNow;
-
-    [BsonRepresentation(MongoDB.Bson.BsonType.ObjectId)]
+    public bool isDeleted { get; set; } = false;
+    
     public string? createdBy { get; set; }
 
     // Bridge camelCase fields → IOrganizationDocument interface (PascalCase)
@@ -66,4 +66,7 @@ public sealed class User : IOrganizationDocument
         get => organizationId;
         set => organizationId = value;
     }
+    
+    bool ISoftDeletable.IsDeleted { get => isDeleted; set => isDeleted = value; }
+
 }

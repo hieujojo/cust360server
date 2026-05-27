@@ -53,7 +53,11 @@ public sealed class DepartmentController : ControllerBase
                 ? Conflict(new { result.ErrorCode, result.ErrorMessage })
                 : BadRequest(new { result.ErrorCode, result.ErrorMessage });
 
-        return CreatedAtAction(nameof(GetById), new { id = result.Data!.Id }, result.Data);
+        if (result.Data is null)
+            return StatusCode(500, new { ErrorCode = "INTERNAL_ERROR", ErrorMessage = "Unexpected null result." });
+
+        return CreatedAtAction(nameof(GetById), new { id = result.Data.Id }, result.Data);
+
     }
 
     /// <summary>Cập nhật phòng ban. Chỉ Admin/Owner.</summary>

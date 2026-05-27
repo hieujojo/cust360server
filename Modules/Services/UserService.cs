@@ -61,22 +61,49 @@ public sealed class UserService : IUserService
             return ServiceResult<UserResponse>.Fail("EMAIL_EXISTS",
                 $"Email '{request.Email}' đã được sử dụng trong tổ chức.");
 
-        var user = BuildUserEntity(request, await GenerateEmployeeCodeAsync(ct));
-        await _userRepo.InsertAsync(user, ct);
+        for (var attempt = 0; attempt < 5; attempt++)
+        {
+            var employeeCode = await GenerateEmployeeCodeAsync(ct);
+            var user = BuildUserEntity(request, employeeCode);
 
-        SendWelcomeEmailFireAndForget(user.email, user.displayName, request.Password);
+            try
+            {
+                await _userRepo.InsertAsync(user, ct);
+                SendWelcomeEmailFireAndForget(user.email, user.displayName, request.Password);
 
-        await _auditLogService.LogAsync(
-            action:          AuditActions.UserCreated,
-            targetUserId:    user.id,
-            targetUserEmail: user.email,
-            metadata:        new Dictionary<string, string> { ["role"] = Roles.GetName(user.role) },
-            ipAddress:       ipAddress,
-            userAgent:       userAgent,
-            ct:              ct);
+                await _auditLogService.LogAsync(
+                    action:          AuditActions.UserCreated,
+                    targetUserId:    user.id,
+                    targetUserEmail: user.email,
+                    metadata:        new Dictionary<string, string> { ["role"] = Roles.GetName(user.role) },
+                    ipAddress:       ipAddress,
+                    userAgent:       userAgent,
+                    ct:              ct);
 
-        _logger.LogInformation("User created: {Email} by {Actor}", user.email, _currentUser.Email);
-        return ServiceResult<UserResponse>.Ok(user.ToResponse());
+                _logger.LogInformation("User created: {Email} by {Actor}", user.email, _currentUser.Email);
+                return ServiceResult<UserResponse>.Ok(user.ToResponse());
+            }
+            catch (MongoDB.Driver.MongoWriteException ex) when (ex.Message.Contains("E11000"))
+            {
+                if (ex.Message.Contains("org_email_unique"))
+                    return ServiceResult<UserResponse>.Fail("EMAIL_EXISTS",
+                        $"Email '{request.Email}' đã được sử dụng trong tổ chức.");
+
+                if (ex.Message.Contains("org_employee_code_unique"))
+                {
+                    if (attempt == 4)
+                        return ServiceResult<UserResponse>.Fail("EMPLOYEE_CODE_CONFLICT",
+                            "Mã nhân viên đã tồn tại. Vui lòng thử lại.");
+
+                    continue;
+                }
+
+                throw;
+            }
+        }
+
+        return ServiceResult<UserResponse>.Fail("EMPLOYEE_CODE_CONFLICT",
+            "Không thể tạo mã nhân viên. Vui lòng thử lại.");
     }
 
     // ─── Update ──────────────────────────────────────────────────────────────
@@ -185,6 +212,17 @@ public sealed class UserService : IUserService
         return PagedResult<UserResponse>.Create(enrichedItems, total, request.Page, request.PageSize);
     }
 
+    public async Task<ServiceResult<List<UserResponse>>> GetAllAsync(CancellationToken ct = default)
+    {
+        var items = await _userRepo.FindAllAsync(ct);
+        var enrichedItems = new List<UserResponse>();
+        foreach (var user in items)
+        {
+            enrichedItems.Add(await EnrichUserResponseAsync(user, ct));
+        }
+        return ServiceResult<List<UserResponse>>.Ok(enrichedItems);
+    }
+
     // ─── Private helpers ─────────────────────────────────────────────────────
 
     /// <summary>Lookup dept/team name và check isTeamLead.</summary>
@@ -228,18 +266,24 @@ public sealed class UserService : IUserService
         string? departmentId, string? teamId, CancellationToken ct)
     {
         // Validate departmentId nếu có
-        if (!string.IsNullOrEmpty(departmentId))
+        if (!string.IsNullOrWhiteSpace(departmentId))
         {
+            if (!MongoDB.Bson.ObjectId.TryParse(departmentId, out _))
+                return ServiceResult.Fail("DEPT_INVALID", "ID phòng ban không hợp lệ.");
+
             var dept = await _deptRepo.FindByIdAsync(departmentId, ct);
             if (dept is null)
                 return ServiceResult.Fail("DEPT_NOT_FOUND", "Không tìm thấy phòng ban.");
         }
 
         // Validate teamId nếu có
-        if (!string.IsNullOrEmpty(teamId))
+        if (!string.IsNullOrWhiteSpace(teamId))
         {
-            if (string.IsNullOrEmpty(departmentId))
+            if (string.IsNullOrWhiteSpace(departmentId))
                 return ServiceResult.Fail("DEPT_REQUIRED_FOR_TEAM", "Phải chỉ định phòng ban khi gán team.");
+
+            if (!MongoDB.Bson.ObjectId.TryParse(teamId, out _))
+                return ServiceResult.Fail("TEAM_INVALID", "ID team không hợp lệ.");
 
             var team = await _teamRepo.FindByIdAsync(teamId, ct);
             if (team is null)
@@ -255,6 +299,7 @@ public sealed class UserService : IUserService
     private User BuildUserEntity(CreateUserRequest request, string employeeCode)
         => new()
         {
+            id             = MongoDB.Bson.ObjectId.GenerateNewId().ToString(),
             organizationId = _currentUser.OrganizationId,
             email          = request.Email.ToLowerInvariant(),
             employeeCode   = employeeCode,
@@ -263,7 +308,6 @@ public sealed class UserService : IUserService
             departmentId   = request.DepartmentId,
             teamId         = request.TeamId,
             displayName    = request.DisplayName.Trim(),
-            jobTitle       = request.JobTitle.Trim(),
             phone          = request.Phone?.Trim(),
             isActive       = true,
             createdBy      = _currentUser.UserId,
@@ -274,8 +318,16 @@ public sealed class UserService : IUserService
     /// <summary>Format: NV-YYYY-NNNN.</summary>
     private async Task<string> GenerateEmployeeCodeAsync(CancellationToken ct)
     {
-        var count = await _userRepo.CountAllAsync(ct);
-        return CodeGenerator.Employee(count + 1);
+        var sequence = await _userRepo.CountAllAsync(ct) + 1;
+        var code = CodeGenerator.Employee(sequence);
+
+        while (await _userRepo.CodeExistsAsync(code, ct))
+        {
+            sequence++;
+            code = CodeGenerator.Employee(sequence);
+        }
+
+        return code;
     }
 
     private static UpdateDefinition<User> BuildUpdateDefinition(UpdateUserRequest request)
@@ -283,7 +335,6 @@ public sealed class UserService : IUserService
         var update = Builders<User>.Update.Set(x => x.updatedAt, DateTime.UtcNow);
 
         if (request.DisplayName  != null) update = update.Set(x => x.displayName,  request.DisplayName.Trim());
-        if (request.JobTitle     != null) update = update.Set(x => x.jobTitle,     request.JobTitle.Trim());
         if (request.Role.HasValue)        update = update.Set(x => x.role,         request.Role.Value);
         if (request.Phone        != null) update = update.Set(x => x.phone,        request.Phone.Trim());
         if (request.DepartmentId != null) update = update.Set(x => x.departmentId, request.DepartmentId);

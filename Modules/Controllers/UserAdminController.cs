@@ -24,6 +24,17 @@ public sealed class UserAdminController : ControllerBase
     public async Task<IActionResult> GetUsers([FromQuery] GetUsersRequest request, CancellationToken ct)
         => Ok(await _userService.GetPagedAsync(request, ct));
 
+    /// <summary>Danh sách tất cả users (không phân trang).</summary>
+    [HttpGet("all")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetAllUsers(CancellationToken ct)
+    {
+        var result = await _userService.GetAllAsync(ct);
+        return result.IsSuccess
+            ? Ok(result.Data)
+            : BadRequest(new { result.ErrorCode, result.ErrorMessage });
+    }
+
     /// <summary>Chi tiết 1 user.</summary>
     [HttpGet("{id}")]
     [ProducesResponseType(StatusCodes.Status200OK)]
@@ -52,11 +63,18 @@ public sealed class UserAdminController : ControllerBase
             ct);
 
         if (!result.IsSuccess)
-            return result.ErrorCode == "EMAIL_EXISTS"
-                ? Conflict(new { result.ErrorCode, result.ErrorMessage })
-                : BadRequest(new { result.ErrorCode, result.ErrorMessage });
+            return result.ErrorCode switch
+            {
+                "EMAIL_EXISTS" or "EMPLOYEE_CODE_CONFLICT" 
+                    => Conflict(new { result.ErrorCode, result.ErrorMessage }),
+                _ => BadRequest(new { result.ErrorCode, result.ErrorMessage })
+            };
 
-        return CreatedAtAction(nameof(GetUser), new { id = result.Data!.Id }, result.Data);
+        if (result.Data is null)
+            return StatusCode(500, new { ErrorCode = "INTERNAL_ERROR", ErrorMessage = "Unexpected null result." });
+
+        return CreatedAtAction(nameof(GetUser), new { id = result.Data.Id }, result.Data);
+
     }
 
     /// <summary>Cập nhật thông tin user.</summary>

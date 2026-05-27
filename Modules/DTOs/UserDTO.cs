@@ -33,10 +33,6 @@ public sealed class CreateUserRequest
     [MaxLength(100)]
     public string DisplayName { get; set; } = string.Empty;
 
-    [Required(ErrorMessage = "Chức vụ là bắt buộc.")]
-    [MaxLength(100)]
-    public string JobTitle { get; set; } = string.Empty;
-
     /// <summary>1 = Owner | 2 = Admin | 3 = User</summary>
     [Required(ErrorMessage = "Role là bắt buộc.")]
     [Range(1, 3, ErrorMessage = "Role phải là 1, 2 hoặc 3.")]
@@ -62,9 +58,6 @@ public sealed class UpdateUserRequest
 {
     [MaxLength(100)]
     public string? DisplayName { get; set; }
-
-    [MaxLength(100)]
-    public string? JobTitle { get; set; }
 
     [Range(1, 3, ErrorMessage = "Role phải là 1, 2 hoặc 3.")]
     public int? Role { get; set; }
@@ -179,7 +172,6 @@ public sealed class UserResponse
     public string  EmployeeCode   { get; init; } = string.Empty;
     public string  Email          { get; init; } = string.Empty;
     public string  DisplayName    { get; init; } = string.Empty;
-    public string  JobTitle       { get; init; } = string.Empty;
 
     /// <summary>Số role: 1 / 2 / 3</summary>
     public int     Role           { get; init; }

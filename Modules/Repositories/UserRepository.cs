@@ -21,8 +21,14 @@ public sealed class UserRepository : BaseRepository<User>, IUserRepository
 
     /// <summary>Tìm user theo ID. Filter: organizationId + isDeleted=false + id</summary>
     public new async Task<User?> FindByIdAsync(string id, CancellationToken ct = default)
-        => await base.FindByIdAsync(id, ct);
+{
+    if (!MongoDB.Bson.ObjectId.TryParse(id, out var objectId)) return null;
 
+    var filter = Builders<User>.Filter.Eq("_id", objectId)
+               & Builders<User>.Filter.Eq(x => x.isDeleted, false);
+
+    return await Collection.Find(filter).FirstOrDefaultAsync(ct);
+}
     /// <summary>Tìm user theo email (lowercase, unique trong org). Use case: Login, validate email.</summary>
     /// <summary>
     /// Tìm user theo email (lowercase). 
@@ -83,10 +89,25 @@ public sealed class UserRepository : BaseRepository<User>, IUserRepository
         return (items, total);
     }
 
+    public async Task<List<User>> FindAllAsync(CancellationToken ct = default)
+    {
+        return await Collection
+            .Find(ActiveOrgFilter)
+            .Sort(Builders<User>.Sort.Descending(x => x.createdAt))
+            .ToListAsync(ct);
+    }
+
     /// <summary>Kiểm tra email đã tồn tại trong org chưa. Use case: Validate khi tạo user.</summary>
     public async Task<bool> EmailExistsAsync(string email, CancellationToken ct = default)
     {
         var filter = OrgFilter & Builders<User>.Filter.Eq(x => x.email, email.ToLowerInvariant());
+        return await Collection.Find(filter).AnyAsync(ct);
+    }
+
+    /// <summary>Kiểm tra employee code đã tồn tại trong org chưa.</summary>
+    public async Task<bool> CodeExistsAsync(string code, CancellationToken ct = default)
+    {
+        var filter = OrgFilter & Builders<User>.Filter.Eq(x => x.employeeCode, code);
         return await Collection.Find(filter).AnyAsync(ct);
     }
 

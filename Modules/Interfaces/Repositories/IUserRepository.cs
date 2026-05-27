@@ -16,7 +16,12 @@ public interface IUserRepository
         int? role, string? departmentId, bool? isActive, string? search,
         int page, int pageSize, CancellationToken ct = default);
 
+    Task<List<User>> FindAllAsync(CancellationToken ct = default);
+
     Task<bool> EmailExistsAsync(string email, CancellationToken ct = default);
+
+    /// <summary>Check if employee code exists dalam organization.</summary>
+    Task<bool> CodeExistsAsync(string code, CancellationToken ct = default);
 
     /// <summary>Đếm tổng users trong org — dùng để generate EmployeeCode.</summary>
     Task<long> CountAllAsync(CancellationToken ct = default);

@@ -1,5 +1,6 @@
 using MongoDB.Bson.Serialization.Attributes;
 using CRM.Api.Infrastructure.MongoDB;
+using MongoDB.Bson;
 
 namespace CRM.Api.Modules.Models;
 
@@ -7,19 +8,19 @@ namespace CRM.Api.Modules.Models;
 public sealed class AuditLog : IOrganizationDocument
 {
     [BsonId]
-    [BsonRepresentation(MongoDB.Bson.BsonType.ObjectId)]
-    public string id { get; set; } = string.Empty;
+    [BsonRepresentation(BsonType.ObjectId)]
+    public string id { get; set; } = ObjectId.GenerateNewId().ToString();
 
-    [BsonRepresentation(MongoDB.Bson.BsonType.ObjectId)]
+    
     public string organizationId { get; set; } = string.Empty;
 
-    [BsonRepresentation(MongoDB.Bson.BsonType.ObjectId)]
+    
     public string? actorId { get; set; }
 
     public string actorEmail { get; set; } = string.Empty;
     public string action { get; set; } = string.Empty;
 
-    [BsonRepresentation(MongoDB.Bson.BsonType.ObjectId)]
+    
     public string? targetUserId { get; set; }
 
     public string? targetUserEmail { get; set; }
@@ -42,6 +43,7 @@ public sealed class AuditLog : IOrganizationDocument
         get => organizationId;
         set => organizationId = value;
     }
+
 }
 
 /// <summary>Tên các action ghi vào AuditLog.</summary>
@@ -56,3 +58,4 @@ public static class AuditActions
     public const string UserPasswordReset   = "UserPasswordReset";
     public const string UserForgotPassword  = "UserForgotPassword";
 }
+

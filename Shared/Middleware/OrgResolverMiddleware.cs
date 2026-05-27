@@ -1,4 +1,5 @@
 using CRM.Api.Shared.Models;
+using CRM.Api.Modules.Interfaces.Repositories;
 
 namespace CRM.Api.Shared.Middleware;
 
@@ -9,7 +10,10 @@ public sealed class OrgResolverMiddleware
 
     public OrgResolverMiddleware(RequestDelegate next) => _next = next;
 
-    public async Task InvokeAsync(HttpContext context, CurrentUser currentUser)
+    public async Task InvokeAsync(
+        HttpContext context,
+        CurrentUser currentUser,
+        IUserRepository userRepo)
     {
         if (context.User.Identity?.IsAuthenticated == true)
         {
@@ -23,9 +27,10 @@ public sealed class OrgResolverMiddleware
             if (roleClaim != null && int.TryParse(roleClaim, out var role))
                 currentUser.Role = role;
 
-            // Security: reject token nếu user bị deactivate
-            var isActiveClaim = context.User.FindFirst("isActive")?.Value;
-            if (isActiveClaim == "false")
+            // Security: reject nếu user đã bị deactivate (không chỉ dựa vào claim trong token)
+            // Lý do: token được issue khi user active vẫn có thể còn hạn sau khi admin deactivate.
+            var dbUser = await userRepo.FindByIdAsync(currentUser.UserId);
+            if (dbUser is null || !dbUser.isActive)
             {
                 context.Response.StatusCode = StatusCodes.Status401Unauthorized;
                 await context.Response.WriteAsJsonAsync(new

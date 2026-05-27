@@ -49,3 +49,30 @@ public class UnauthorizedException : Exception
     public UnauthorizedException(string message = "Phiên đăng nhập không hợp lệ.")
         : base(message) { }
 }
+
+// ============================================================================
+// CUSTOMER EXCEPTIONS
+// ============================================================================
+
+public class CustomerNotFoundException : NotFoundException
+{
+    public CustomerNotFoundException(string id) : base("Customer", id) { }
+}
+
+public class InvalidStatusTransitionException : ValidationException
+{
+    public InvalidStatusTransitionException(string from, string to)
+        : base("status", $"Chuyển trạng thái từ '{from}' sang '{to}' không hợp lệ.") { }
+}
+
+public class CustomerCodeGenerationException : Exception
+{
+    public CustomerCodeGenerationException(string message) : base(message) { }
+}
+
+public class MaxContactsExceededException : ValidationException
+{
+    public MaxContactsExceededException()
+        : base("contacts", "Số lượng contacts đã đạt giới hạn tối đa (50).") { }
+}
+

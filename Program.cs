@@ -19,7 +19,9 @@ builder.Services
     .AddControllers();
 
 builder.Services
-    .AddIdentityModule();
+    .AddIdentityModule()
+    .AddCustomerModule()
+    .AddSalesModule();
 
 builder.Services.AddHealthChecks();
 
@@ -31,6 +33,8 @@ var app = builder.Build();
 await app.Services.TestMongoDbConnectionAsync();
 
 await app.Services.EnsureIdentityIndexesAsync();
+await app.Services.EnsureCustomerIndexesAsync();
+await app.Services.EnsureSalesIndexesAsync();
 
 app.UseMiddleware<ErrorHandlerMiddleware>();
 

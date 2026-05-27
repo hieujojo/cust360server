@@ -26,6 +26,7 @@ public interface IUserService
 
     Task<ServiceResult<UserResponse>> GetByIdAsync(string userId, CancellationToken ct = default);
     Task<PagedResult<UserResponse>> GetPagedAsync(GetUsersRequest request, CancellationToken ct = default);
+    Task<ServiceResult<List<UserResponse>>> GetAllAsync(CancellationToken ct = default);
 
     Task<ServiceResult> ChangePasswordAsync(
         string userId, ChangePasswordRequest request,

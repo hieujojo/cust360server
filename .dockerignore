@@ -1,0 +1,17 @@
+# Build artifacts — không copy vào Docker image
+bin/
+obj/
+
+# Secrets — không bao giờ copy vào image
+.env
+.env.*
+!.env.example
+
+# IDE
+.vs/
+.vscode/
+.idea/
+
+# Git
+.git/
+.gitignore

@@ -6,3 +6,8 @@ public interface IOrganizationDocument
     string Id             { get; set; }
     string OrganizationId { get; set; }
 }
+
+public interface ISoftDeletable
+{
+    bool IsDeleted { get; set; }
+}

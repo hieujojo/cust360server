@@ -140,9 +140,11 @@ public sealed class TeamService : ITeamService
     public async Task<List<TeamResponse>> GetByDepartmentAsync(string departmentId, CancellationToken ct = default)
     {
         var dept = await _deptRepo.FindByIdAsync(departmentId, ct);
+        Console.WriteLine($"[DEBUG] departmentId={departmentId}, dept={dept?.name ?? "NULL"}");
         if (dept is null) return [];
 
         var teams = await _teamRepo.FindByDepartmentAsync(departmentId, ct);
+    Console.WriteLine($"[DEBUG] teams count={teams.Count}");
 
         // Batch load lead names
         var leadIds = teams

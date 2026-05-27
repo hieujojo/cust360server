@@ -26,8 +26,16 @@ public abstract class BaseRepository<T> where T : IOrganizationDocument
         Builders<T>.Filter.Eq("organizationId", _currentUser.OrganizationId);
 
     /// <summary>OrgFilter + isDeleted = false.</summary>
-    protected FilterDefinition<T> ActiveOrgFilter =>
-        OrgFilter & Builders<T>.Filter.Eq("isDeleted", false);
+    protected FilterDefinition<T> ActiveOrgFilter
+{
+    get
+    {
+        var filter = OrgFilter;
+        if (typeof(ISoftDeletable).IsAssignableFrom(typeof(T)))
+            filter &= Builders<T>.Filter.Eq("isDeleted", false);
+        return filter;
+    }
+}
 
     /// <summary>
     /// Department-based scoping: User (role=3) chỉ thấy data của department mình.
@@ -70,6 +78,7 @@ public abstract class BaseRepository<T> where T : IOrganizationDocument
         CancellationToken ct = default)
     {
         var filter = ActiveOrgFilter & additionalFilter;
+        
         var query  = _collection.Find(filter);
 
         if (sort   != null) query = query.Sort(sort);
@@ -117,6 +126,8 @@ public abstract class BaseRepository<T> where T : IOrganizationDocument
     public async Task InsertAsync(T document, CancellationToken ct = default)
     {
         document.OrganizationId = _currentUser.OrganizationId;
+        if (document is ISoftDeletable softDeletable)
+        softDeletable.IsDeleted = false;
         await _collection.InsertOneAsync(document, cancellationToken: ct);
     }
 
@@ -127,13 +138,16 @@ public abstract class BaseRepository<T> where T : IOrganizationDocument
     }
 
     public async Task<bool> SoftDeleteAsync(string id, CancellationToken ct = default)
-    {
-        var filter = ActiveOrgFilter & Builders<T>.Filter.Eq("id", id);
-        var update = Builders<T>.Update
-            .Set("isDeleted", true)
-            .Set("updatedAt", DateTime.UtcNow);
+{
+    if (!typeof(ISoftDeletable).IsAssignableFrom(typeof(T)))
+        throw new InvalidOperationException($"{typeof(T).Name} không hỗ trợ soft delete.");
 
-        var result = await _collection.UpdateOneAsync(filter, update, cancellationToken: ct);
-        return result.ModifiedCount > 0;
-    }
+    var filter = ActiveOrgFilter & Builders<T>.Filter.Eq("id", id);
+    var update = Builders<T>.Update
+        .Set("isDeleted", true)
+        .Set("updatedAt", DateTime.UtcNow);
+
+    var result = await _collection.UpdateOneAsync(filter, update, cancellationToken: ct);
+    return result.ModifiedCount > 0;
+}
 }

@@ -94,7 +94,11 @@ public sealed class DepartmentService : IDepartmentService
 
     public async Task<List<DepartmentResponse>> GetAllAsync(CancellationToken ct = default)
     {
-        var depts = await _deptRepo.FindAllAsync(ct);
+        Console.WriteLine($"🔍 OrganizationId = '{_currentUser.OrganizationId}'");
+    
+    var depts = await _deptRepo.FindAllAsync(ct);
+    
+    Console.WriteLine($"🔍 Found {depts.Count} departments");
         var teams = await _teamRepo.FindAllAsync(ct);
 
         // Group teams theo departmentId để đếm
