@@ -13,6 +13,7 @@ public static class DealMapper
             CustomerId = deal.customerId,
             CustomerName = customer?.name ?? string.Empty,
             Value = deal.value,
+            ExpectedRevenue = deal.expectedRevenue,
             Currency = deal.currency,
             ExpectedCloseDate = deal.expectedCloseDate,
             OwnerId = deal.ownerId,

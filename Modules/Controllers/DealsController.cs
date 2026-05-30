@@ -21,6 +21,11 @@ public sealed class DealsController : ControllerBase
     public async Task<IActionResult> List([FromQuery] DealListFilterRequest request, CancellationToken ct)
         => Ok(await _dealService.GetListAsync(request, ct));
 
+    [HttpGet("stats")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<IActionResult> Stats(CancellationToken ct)
+        => Ok(await _dealService.GetStatsAsync(ct));
+
     [HttpPost]
     [ProducesResponseType(StatusCodes.Status201Created)]
     public async Task<IActionResult> Create([FromBody] CreateDealRequest request, CancellationToken ct)

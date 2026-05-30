@@ -19,6 +19,8 @@ public sealed class CreateCustomerRequest
     public string? OwnerId { get; set; }
     /// <summary>Custom fields dạng key-value. Tối đa 10KB.</summary>
     public Dictionary<string, object>? CustomFields { get; set; }
+    
+    public List<CreateContactRequest>? Contacts { get; set; }
 }
 
 /// <summary>PUT /api/customers/{id}</summary>

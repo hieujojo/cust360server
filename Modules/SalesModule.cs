@@ -13,6 +13,8 @@ public static class SalesModule
         services.AddScoped<IOrganizationRepository, OrganizationRepository>();
         services.AddScoped<IDealService, DealService>();
         services.AddScoped<IPipelineStageService, PipelineStageService>();
+        services.AddScoped<IQuotationRepository, QuotationRepository>();
+        services.AddScoped<IQuotationService, QuotationService>();
         return services;
     }
 

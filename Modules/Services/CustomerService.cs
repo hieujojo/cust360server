@@ -81,6 +81,15 @@ public sealed class CustomerService : ICustomerService
             departmentId = resolvedDepartmentId,
             status = "Lead", // Default status
             customFields = request.CustomFields?.ToBsonDocument(),
+            contacts = request.Contacts?.Select(c => new Contact
+            {
+                name = c.Name.Trim(),
+                role = c.Role?.Trim(),
+                email = c.Email?.Trim(),
+                phone = c.Phone?.Trim(),
+                isPrimary = c.IsPrimary,
+                createdAt = DateTime.UtcNow
+            }).ToList() ?? new List<Contact>(),
             createdAt = DateTime.UtcNow,
             updatedAt = DateTime.UtcNow
         };

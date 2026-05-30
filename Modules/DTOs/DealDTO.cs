@@ -4,8 +4,16 @@ public sealed class DealListFilterRequest
 {
     public string? Stage { get; set; }
     public string? Owner { get; set; }
+    public string? CustomerId { get; set; }
     public string? Sort { get; set; } = "updatedAt:desc";
     public string? Search { get; set; }
+}
+
+public sealed class DealStatsResponse
+{
+    public long TotalCount { get; init; }
+    public long WonCount { get; init; }
+    public long OpenCount => TotalCount - WonCount;
 }
 
 public sealed class CreateDealRequest
@@ -13,6 +21,7 @@ public sealed class CreateDealRequest
     public string Title { get; set; } = string.Empty;
     public string Customer { get; set; } = string.Empty;
     public decimal Value { get; set; }
+    public decimal? ExpectedRevenue { get; set; }
     public string Currency { get; set; } = "VND";
     public DateTime? ExpectedCloseDate { get; set; }
     public string? Owner { get; set; }
@@ -28,6 +37,7 @@ public sealed class UpdateDealRequest
     public string? Title { get; set; }
     public string? Customer { get; set; }
     public decimal? Value { get; set; }
+    public decimal? ExpectedRevenue { get; set; }
     public string? Currency { get; set; }
     public DateTime? ExpectedCloseDate { get; set; }
     public string? Owner { get; set; }
@@ -50,6 +60,7 @@ public sealed class DealResponse
     public string CustomerId { get; init; } = string.Empty;
     public string CustomerName { get; init; } = string.Empty;
     public decimal Value { get; init; }
+    public decimal ExpectedRevenue { get; init; }
     public string Currency { get; init; } = "VND";
     public DateTime? ExpectedCloseDate { get; init; }
     public string OwnerId { get; init; } = string.Empty;

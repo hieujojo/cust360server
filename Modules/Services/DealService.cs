@@ -40,6 +40,8 @@ public sealed class DealService : IDealService
             filter &= Builders<Deal>.Filter.Eq(x => x.stage, request.Stage);
         if (!string.IsNullOrWhiteSpace(request.Owner))
             filter &= Builders<Deal>.Filter.Eq(x => x.ownerId, request.Owner);
+        if (!string.IsNullOrWhiteSpace(request.CustomerId))
+            filter &= Builders<Deal>.Filter.Eq(x => x.customerId, request.CustomerId);
         if (!string.IsNullOrWhiteSpace(request.Search))
         {
             var regex = new BsonRegularExpression(request.Search, "i");
@@ -73,6 +75,18 @@ public sealed class DealService : IDealService
             customers.GetValueOrDefault(d.customerId))).ToList();
     }
 
+    public async Task<DealStatsResponse> GetStatsAsync(CancellationToken ct = default)
+    {
+        var totalCount = await _dealRepo.CountAsync(Builders<Deal>.Filter.Empty, ct);
+        var wonCount = await _dealRepo.CountByStageAsync("Won", ct);
+
+        return new DealStatsResponse
+        {
+            TotalCount = totalCount,
+            WonCount = wonCount
+        };
+    }
+
     public async Task<ServiceResult<DealResponse>> CreateAsync(CreateDealRequest request, CancellationToken ct = default)
     {
         var validation = await ValidateDealDataAsync(request.Customer, request.Owner, request.Stage, request.Probability, ct);
@@ -86,6 +100,7 @@ public sealed class DealService : IDealService
             title = request.Title.Trim(),
             customerId = request.Customer,
             value = request.Value,
+            expectedRevenue = request.ExpectedRevenue ?? 0,
             currency = request.Currency.Trim().ToUpperInvariant(),
             expectedCloseDate = request.ExpectedCloseDate,
             ownerId = ownerId,
@@ -143,6 +158,7 @@ public sealed class DealService : IDealService
         if (request.Title != null) update = update.Set(x => x.title, request.Title.Trim());
         if (request.Customer != null) update = update.Set(x => x.customerId, request.Customer);
         if (request.Value.HasValue) update = update.Set(x => x.value, request.Value.Value);
+        if (request.ExpectedRevenue.HasValue) update = update.Set(x => x.expectedRevenue, request.ExpectedRevenue.Value);
         if (request.Currency != null) update = update.Set(x => x.currency, request.Currency.Trim().ToUpperInvariant());
         if (request.ExpectedCloseDate.HasValue) update = update.Set(x => x.expectedCloseDate, request.ExpectedCloseDate.Value);
         if (request.Owner != null) update = update.Set(x => x.ownerId, request.Owner);

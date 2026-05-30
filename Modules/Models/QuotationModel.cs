@@ -5,26 +5,24 @@ using MongoDB.Bson.Serialization.Attributes;
 namespace CRM.Api.Modules.Models;
 
 [BsonIgnoreExtraElements]
-public sealed class Deal : IOrganizationDocument, ISoftDeletable
+public sealed class Quotation : IOrganizationDocument, ISoftDeletable
 {
     [BsonId]
     [BsonRepresentation(BsonType.ObjectId)]
     public string id { get; set; } = ObjectId.GenerateNewId().ToString();
 
     public string organizationId { get; set; } = string.Empty;
-    public string title { get; set; } = string.Empty;
-    public string customerId { get; set; } = string.Empty;
-    public decimal value { get; set; }
-    public decimal expectedRevenue { get; set; }
+    public string dealId { get; set; } = string.Empty;
+    public string customerName { get; set; } = string.Empty;
+    public string code { get; set; } = string.Empty; // QUO-YYYY-NNNN
+    public decimal totalValue { get; set; }
     public string currency { get; set; } = "VND";
-    public DateTime? expectedCloseDate { get; set; }
-    public string ownerId { get; set; } = string.Empty;
-    public string stage { get; set; } = string.Empty;
-    public int probability { get; set; }
+    public string status { get; set; } = "Draft"; // Draft, Sent, Accepted, Rejected
     public string? notes { get; set; }
-    public List<DealStageHistoryItem> stageHistory { get; set; } = [];
-    public List<string> contacts { get; set; } = [];
-    public List<string> quotations { get; set; } = [];
+    public List<QuotationItem> items { get; set; } = new();
+    public int version { get; set; } = 1;
+    public DateTime? validUntil { get; set; }
+    
     public DateTime createdAt { get; set; } = DateTime.UtcNow;
     public DateTime updatedAt { get; set; } = DateTime.UtcNow;
     public bool isDeleted { get; set; } = false;
@@ -48,10 +46,11 @@ public sealed class Deal : IOrganizationDocument, ISoftDeletable
     }
 }
 
-public sealed class DealStageHistoryItem
+public sealed class QuotationItem
 {
-    public string stage { get; set; } = string.Empty;
-    public DateTime changedAt { get; set; } = DateTime.UtcNow;
-    public string changedBy { get; set; } = string.Empty;
+    public string description { get; set; } = string.Empty;
+    public string? category { get; set; }
+    public decimal quantity { get; set; }
+    public decimal unitPrice { get; set; }
+    public decimal total { get; set; }
 }
-

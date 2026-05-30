@@ -17,6 +17,7 @@ public sealed class DealRepository : BaseRepository<Deal>, IDealRepository
     public new async Task<Deal?> FindByIdAsync(string id, CancellationToken ct = default) => await base.FindByIdAsync(id, ct);
     public new async Task UpdateAsync(string id, UpdateDefinition<Deal> update, CancellationToken ct = default) => await base.UpdateAsync(id, update, ct);
     public new async Task<bool> SoftDeleteAsync(string id, CancellationToken ct = default) => await base.SoftDeleteAsync(id, ct);
+    public new async Task<long> CountAsync(FilterDefinition<Deal> additionalFilter, CancellationToken ct = default) => await base.CountAsync(additionalFilter, ct);
 
     public async Task<List<Deal>> FindAsync(FilterDefinition<Deal> additionalFilter, SortDefinition<Deal>? sort = null, CancellationToken ct = default)
         => await FindManyWithDepartmentScopeAsync(additionalFilter, sort: sort, ct: ct);
@@ -52,4 +53,3 @@ public sealed class DealRepository : BaseRepository<Deal>, IDealRepository
         await Collection.Indexes.CreateManyAsync(indexes, ct);
     }
 }
-
