@@ -34,6 +34,34 @@ public sealed class UserProfileController : ControllerBase
             : NotFound(new { result.ErrorCode, result.ErrorMessage });
     }
 
+    /// <summary>Cập nhật profile của chính mình.</summary>
+    [HttpPut]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> UpdateMyProfile([FromBody] UpdateUserRequest request, CancellationToken ct)
+    {
+        if (!ModelState.IsValid) return BadRequest(ModelState);
+
+        var userId = User.FindFirst("sub")?.Value;
+        if (string.IsNullOrEmpty(userId))
+            return Unauthorized(new { ErrorCode = "INVALID_TOKEN", ErrorMessage = "Token không hợp lệ." });
+
+        var result = await _userService.UpdateUserAsync(
+            userId,
+            request,
+            HttpContext.Connection.RemoteIpAddress?.ToString(),
+            Request.Headers.UserAgent.ToString(),
+            ct);
+
+        if (!result.IsSuccess)
+            return result.ErrorCode == "NOT_FOUND"
+                ? NotFound(new { result.ErrorCode, result.ErrorMessage })
+                : BadRequest(new { result.ErrorCode, result.ErrorMessage });
+
+        return Ok(result.Data);
+    }
+
     /// <summary>Đổi password của chính mình.</summary>
     [HttpPut("password")]
     [ProducesResponseType(StatusCodes.Status200OK)]

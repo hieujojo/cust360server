@@ -2,14 +2,24 @@ using CRM.Api.Infrastructure.Extensions;
 using CRM.Api.Modules;
 using CRM.Api.Shared.Extensions;
 using CRM.Api.Shared.Middleware;
+using Serilog;
 
 // Load .env file vào Environment Variables
 DotNetEnv.Env.Load();
+Log.Logger = new LoggerConfiguration()
+    .MinimumLevel.Information()
+    .MinimumLevel.Override("Microsoft", Serilog.Events.LogEventLevel.Warning)
+    .MinimumLevel.Override("Microsoft.Hosting.Lifetime", Serilog.Events.LogEventLevel.Information)
+    .Enrich.FromLogContext()
+    .WriteTo.Console()
+    .WriteTo.Seq("http://localhost:5341")
+    .CreateLogger();
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Host.UseSerilog();
 
-builder.Services
-    .AddMongoDb(builder.Configuration)
+builder
+    .Services.AddMongoDb(builder.Configuration)
     .AddJwtAuthentication(builder.Configuration)
     .AddEmail(builder.Configuration)
     .AddCurrentUser()
@@ -18,10 +28,11 @@ builder.Services
     .AddSwagger()
     .AddControllers();
 
-builder.Services
-    .AddIdentityModule()
+builder
+    .Services.AddIdentityModule()
     .AddCustomerModule()
-    .AddSalesModule();
+    .AddSalesModule()
+    .AddActivityModule(builder.Configuration);
 
 builder.Services.AddHealthChecks();
 
@@ -35,6 +46,7 @@ await app.Services.TestMongoDbConnectionAsync();
 await app.Services.EnsureIdentityIndexesAsync();
 await app.Services.EnsureCustomerIndexesAsync();
 await app.Services.EnsureSalesIndexesAsync();
+await app.Services.EnsureActivityIndexesAsync();
 
 app.UseMiddleware<ErrorHandlerMiddleware>();
 

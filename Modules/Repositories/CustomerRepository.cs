@@ -228,6 +228,21 @@ public sealed class CustomerRepository : BaseRepository<Customer>, ICustomerRepo
         await Collection.Indexes.CreateManyAsync(indexes, ct);
     }
 
+    public async Task<Customer?> FindByContactEmailInOrgAsync(
+        string organizationId, string email, CancellationToken ct = default)
+    {
+        var normalized = email.Trim().ToLowerInvariant();
+        var filter = Builders<Customer>.Filter.Eq(c => c.organizationId, organizationId)
+            & Builders<Customer>.Filter.Eq(c => c.isDeleted, false)
+            & Builders<Customer>.Filter.Or(
+                Builders<Customer>.Filter.Regex(c => c.email, new BsonRegularExpression($"^{normalized}$", "i")),
+                Builders<Customer>.Filter.ElemMatch(
+                    c => c.contacts,
+                    Builders<Contact>.Filter.Regex(c => c.email, new BsonRegularExpression($"^{normalized}$", "i"))));
+
+        return await Collection.Find(filter).FirstOrDefaultAsync(ct);
+    }
+
     // ─── Private helpers ──────────────────────────────────────────────────────
 
     private static SortDefinition<Customer> BuildSort(string sortBy, string sortDir)

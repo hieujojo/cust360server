@@ -1,26 +1,27 @@
 using System.Net;
 using System.Net.Mail;
+using CRM.Api.Infrastructure.Settings;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using CRM.Api.Infrastructure.Settings;
 
 namespace CRM.Api.Infrastructure.Email;
 
 /// <summary>SMTP implementation. Swap provider bằng cách implement lại IEmailService.</summary>
 public sealed class EmailService : IEmailService
 {
-    private readonly EmailSettings        _settings;
-    private readonly ILogger<EmailService> _logger;
+    private readonly EmailSettings _settings;
 
     public EmailService(IOptions<EmailSettings> options, ILogger<EmailService> logger)
     {
         _settings = options.Value;
-        _logger   = logger;
     }
 
     public async Task SendAccountCreatedAsync(
-        string toEmail, string displayName, string password,
-        CancellationToken ct = default)
+        string toEmail,
+        string displayName,
+        string password,
+        CancellationToken ct = default
+    )
     {
         var subject = "Tài khoản CRM của bạn đã được tạo";
         var body = $"""
@@ -35,8 +36,10 @@ public sealed class EmailService : IEmailService
     }
 
     public async Task SendAccountDeactivatedAsync(
-        string toEmail, string displayName,
-        CancellationToken ct = default)
+        string toEmail,
+        string displayName,
+        CancellationToken ct = default
+    )
     {
         var subject = "Tài khoản CRM của bạn đã bị vô hiệu hóa";
         var body = $"""
@@ -50,8 +53,11 @@ public sealed class EmailService : IEmailService
     }
 
     public async Task SendPasswordResetAsync(
-        string toEmail, string displayName, string newPassword,
-        CancellationToken ct = default)
+        string toEmail,
+        string displayName,
+        string newPassword,
+        CancellationToken ct = default
+    )
     {
         var subject = "Mật khẩu CRM của bạn đã được đặt lại";
         var body = $"""
@@ -67,8 +73,11 @@ public sealed class EmailService : IEmailService
     }
 
     public async Task SendPasswordResetLinkAsync(
-        string toEmail, string displayName, string resetLink,
-        CancellationToken ct = default)
+        string toEmail,
+        string displayName,
+        string resetLink,
+        CancellationToken ct = default
+    )
     {
         var subject = "Yêu cầu đặt lại mật khẩu CRM";
         var body = $"""
@@ -83,31 +92,32 @@ public sealed class EmailService : IEmailService
         await SendAsync(toEmail, subject, body, ct);
     }
 
-    private async Task SendAsync(string toEmail, string subject, string htmlBody, CancellationToken ct)
+    private async Task SendAsync(
+        string toEmail,
+        string subject,
+        string htmlBody,
+        CancellationToken ct
+    )
     {
         try
         {
             using var client = new SmtpClient(_settings.SmtpHost, _settings.SmtpPort)
             {
                 Credentials = new NetworkCredential(_settings.SmtpUser, _settings.SmtpPassword),
-                EnableSsl   = _settings.EnableSsl
+                EnableSsl = _settings.EnableSsl,
             };
 
             using var message = new MailMessage
             {
-                From       = new MailAddress(_settings.FromAddress, _settings.FromName),
-                Subject    = subject,
-                Body       = htmlBody,
-                IsBodyHtml = true
+                From = new MailAddress(_settings.FromAddress, _settings.FromName),
+                Subject = subject,
+                Body = htmlBody,
+                IsBodyHtml = true,
             };
             message.To.Add(toEmail);
 
             await client.SendMailAsync(message, ct);
-            _logger.LogInformation("Email sent to {Email}", toEmail);
         }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Failed to send email to {Email}", toEmail);
-        }
+        catch (Exception) { }
     }
 }

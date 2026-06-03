@@ -11,6 +11,7 @@ public interface ICustomerRepository
     // ─── CRUD ─────────────────────────────────────────────────────────────────
     Task<Customer?> FindByIdAsync(string id, CancellationToken ct = default);
     Task<Customer?> FindByCustomerCodeAsync(string code, CancellationToken ct = default);
+    Task<Customer?> FindByContactEmailInOrgAsync(string organizationId, string email, CancellationToken ct = default);
     Task InsertAsync(Customer customer, CancellationToken ct = default);
     Task UpdateAsync(string id, UpdateDefinition<Customer> update, CancellationToken ct = default);
     Task<bool> SoftDeleteAsync(string id, CancellationToken ct = default);

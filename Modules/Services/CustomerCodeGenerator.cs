@@ -14,16 +14,11 @@ public sealed class CustomerCodeGenerator : ICustomerCodeGenerator
 {
     private readonly ICustomerRepository _customerRepo;
     private readonly CurrentUser _currentUser;
-    private readonly ILogger<CustomerCodeGenerator> _logger;
 
-    public CustomerCodeGenerator(
-        ICustomerRepository customerRepo,
-        CurrentUser currentUser,
-        ILogger<CustomerCodeGenerator> logger)
+    public CustomerCodeGenerator(ICustomerRepository customerRepo, CurrentUser currentUser)
     {
         _customerRepo = customerRepo;
         _currentUser = currentUser;
-        _logger = logger;
     }
 
     public async Task<string> GenerateAsync(CancellationToken ct = default)
@@ -42,16 +37,16 @@ public sealed class CustomerCodeGenerator : ICustomerCodeGenerator
             {
                 return customerCode;
             }
-
-            _logger.LogWarning("Collision mã khách hàng: {CustomerCode} (Attempt {Attempt})", customerCode, attempt);
         }
-
-        throw new CustomerCodeGenerationException($"Không thể tạo mã khách hàng duy nhất sau {maxRetries} lần thử.");
+        throw new InvalidOperationException(
+            $"Cannot generate unique CustomerCode after {maxRetries} attempts."
+        );
     }
 
     public bool IsValidFormat(string customerCode)
     {
-        if (string.IsNullOrWhiteSpace(customerCode)) return false;
+        if (string.IsNullOrWhiteSpace(customerCode))
+            return false;
         // Regex: CUST-4 chữ số-4 chữ số
         return Regex.IsMatch(customerCode, @"^CUST-\d{4}-\d{4}$");
     }

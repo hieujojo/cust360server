@@ -16,6 +16,7 @@ public sealed class DealService : IDealService
     private readonly ICustomerRepository _customerRepo;
     private readonly IUserRepository _userRepo;
     private readonly IPipelineStageService _pipelineStageService;
+    private readonly IActivityAutoLogService _activityAutoLog;
     private readonly CurrentUser _currentUser;
 
     public DealService(
@@ -23,12 +24,14 @@ public sealed class DealService : IDealService
         ICustomerRepository customerRepo,
         IUserRepository userRepo,
         IPipelineStageService pipelineStageService,
+        IActivityAutoLogService activityAutoLog,
         CurrentUser currentUser)
     {
         _dealRepo = dealRepo;
         _customerRepo = customerRepo;
         _userRepo = userRepo;
         _pipelineStageService = pipelineStageService;
+        _activityAutoLog = activityAutoLog;
         _currentUser = currentUser;
     }
 
@@ -181,6 +184,13 @@ public sealed class DealService : IDealService
         }
 
         await _dealRepo.UpdateAsync(id, update, ct);
+
+        if (request.Stage != null && !request.Stage.Equals(existing.stage, StringComparison.OrdinalIgnoreCase))
+        {
+            await _activityAutoLog.LogDealStageChangedAsync(
+                existing.customerId, id, existing.title, existing.stage, request.Stage, ct);
+        }
+
         return await GetByIdAsync(id, ct);
     }
 
@@ -201,6 +211,12 @@ public sealed class DealService : IDealService
         if (!stages.Any(x => x.Name.Equals(request.Stage, StringComparison.OrdinalIgnoreCase)))
             throw new ValidationException("stage", "Stage không hợp lệ.");
 
+        var existing = await _dealRepo.FindByIdAsync(id, ct);
+        if (existing == null)
+            return ServiceResult<DealResponse>.Fail("NOT_FOUND", "Không tìm thấy deal.");
+
+        var oldStage = existing.stage;
+
         var history = new DealStageHistoryItem
         {
             stage = request.Stage,
@@ -214,6 +230,10 @@ public sealed class DealService : IDealService
             .Push(x => x.stageHistory, history);
 
         await _dealRepo.UpdateAsync(id, update, ct);
+
+        await _activityAutoLog.LogDealStageChangedAsync(
+            existing.customerId, id, existing.title, oldStage, request.Stage, ct);
+
         return await GetByIdAsync(id, ct);
     }
 

@@ -69,6 +69,8 @@ public sealed class UpdateUserRequest
 
     [MaxLength(20)]
     public string? Phone { get; set; }
+
+    public string? AvatarUrl { get; set; }
 }
 
 /// <summary>PUT /api/admin/users/{id}/status</summary>
