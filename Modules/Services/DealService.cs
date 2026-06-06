@@ -3,6 +3,7 @@ using CRM.Api.Modules.Interfaces.Repositories;
 using CRM.Api.Modules.Interfaces.Services;
 using CRM.Api.Modules.Mappers;
 using CRM.Api.Modules.Models;
+using CRM.Api.Services;
 using CRM.Api.Shared.Exceptions;
 using CRM.Api.Shared.Models;
 using MongoDB.Bson;
@@ -17,6 +18,8 @@ public sealed class DealService : IDealService
     private readonly IUserRepository _userRepo;
     private readonly IPipelineStageService _pipelineStageService;
     private readonly IActivityAutoLogService _activityAutoLog;
+    private readonly NotificationService _notificationService;
+    private readonly FirebaseService _firebase;
     private readonly CurrentUser _currentUser;
 
     public DealService(
@@ -25,17 +28,25 @@ public sealed class DealService : IDealService
         IUserRepository userRepo,
         IPipelineStageService pipelineStageService,
         IActivityAutoLogService activityAutoLog,
-        CurrentUser currentUser)
+        NotificationService notificationService,
+        FirebaseService firebase,
+        CurrentUser currentUser
+    )
     {
         _dealRepo = dealRepo;
         _customerRepo = customerRepo;
         _userRepo = userRepo;
         _pipelineStageService = pipelineStageService;
         _activityAutoLog = activityAutoLog;
+        _notificationService = notificationService;
+        _firebase = firebase;
         _currentUser = currentUser;
     }
 
-    public async Task<List<DealResponse>> GetListAsync(DealListFilterRequest request, CancellationToken ct = default)
+    public async Task<List<DealResponse>> GetListAsync(
+        DealListFilterRequest request,
+        CancellationToken ct = default
+    )
     {
         var filter = Builders<Deal>.Filter.Empty;
 
@@ -50,7 +61,8 @@ public sealed class DealService : IDealService
             var regex = new BsonRegularExpression(request.Search, "i");
             filter &= Builders<Deal>.Filter.Or(
                 Builders<Deal>.Filter.Regex(x => x.title, regex),
-                Builders<Deal>.Filter.Regex(x => x.notes, regex));
+                Builders<Deal>.Filter.Regex(x => x.notes, regex)
+            );
         }
 
         var sort = BuildSort(request.Sort);
@@ -63,19 +75,26 @@ public sealed class DealService : IDealService
         foreach (var ownerId in ownerIds)
         {
             var owner = await _userRepo.FindByIdAsync(ownerId, ct);
-            if (owner != null) owners[owner.id] = owner;
+            if (owner != null)
+                owners[owner.id] = owner;
         }
 
         var customers = new Dictionary<string, Customer>();
         foreach (var customerId in customerIds)
         {
             var customer = await _customerRepo.FindByIdAsync(customerId, ct);
-            if (customer != null) customers[customer.id] = customer;
+            if (customer != null)
+                customers[customer.id] = customer;
         }
 
-        return deals.Select(d => d.ToResponse(
-            owners.GetValueOrDefault(d.ownerId),
-            customers.GetValueOrDefault(d.customerId))).ToList();
+        return deals
+            .Select(d =>
+                d.ToResponse(
+                    owners.GetValueOrDefault(d.ownerId),
+                    customers.GetValueOrDefault(d.customerId)
+                )
+            )
+            .ToList();
     }
 
     public async Task<DealStatsResponse> GetStatsAsync(CancellationToken ct = default)
@@ -83,20 +102,27 @@ public sealed class DealService : IDealService
         var totalCount = await _dealRepo.CountAsync(Builders<Deal>.Filter.Empty, ct);
         var wonCount = await _dealRepo.CountByStageAsync("Won", ct);
 
-        return new DealStatsResponse
-        {
-            TotalCount = totalCount,
-            WonCount = wonCount
-        };
+        return new DealStatsResponse { TotalCount = totalCount, WonCount = wonCount };
     }
 
-    public async Task<ServiceResult<DealResponse>> CreateAsync(CreateDealRequest request, CancellationToken ct = default)
+    public async Task<ServiceResult<DealResponse>> CreateAsync(
+        CreateDealRequest request,
+        CancellationToken ct = default
+    )
     {
-        var validation = await ValidateDealDataAsync(request.Customer, request.Owner, request.Stage, request.Probability, ct);
+        var validation = await ValidateDealDataAsync(
+            request.Customer,
+            request.Owner,
+            request.Stage,
+            request.Probability,
+            ct
+        );
         if (!validation.IsSuccess)
             return validation;
 
-        var ownerId = string.IsNullOrWhiteSpace(request.Owner) ? _currentUser.UserId : request.Owner!;
+        var ownerId = string.IsNullOrWhiteSpace(request.Owner)
+            ? _currentUser.UserId
+            : request.Owner!;
 
         var deal = new Deal
         {
@@ -118,18 +144,21 @@ public sealed class DealService : IDealService
                 {
                     stage = request.Stage.Trim(),
                     changedAt = DateTime.UtcNow,
-                    changedBy = _currentUser.UserId
-                }
+                    changedBy = _currentUser.UserId,
+                },
             ],
             createdAt = DateTime.UtcNow,
-            updatedAt = DateTime.UtcNow
+            updatedAt = DateTime.UtcNow,
         };
 
         await _dealRepo.InsertAsync(deal, ct);
         return await GetByIdAsync(deal.id, ct);
     }
 
-    public async Task<ServiceResult<DealResponse>> GetByIdAsync(string id, CancellationToken ct = default)
+    public async Task<ServiceResult<DealResponse>> GetByIdAsync(
+        string id,
+        CancellationToken ct = default
+    )
     {
         var deal = await _dealRepo.FindByIdAsync(id, ct);
         if (deal == null)
@@ -141,7 +170,11 @@ public sealed class DealService : IDealService
         return ServiceResult<DealResponse>.Ok(deal.ToResponse(owner, customer));
     }
 
-    public async Task<ServiceResult<DealResponse>> UpdateAsync(string id, UpdateDealRequest request, CancellationToken ct = default)
+    public async Task<ServiceResult<DealResponse>> UpdateAsync(
+        string id,
+        UpdateDealRequest request,
+        CancellationToken ct = default
+    )
     {
         var existing = await _dealRepo.FindByIdAsync(id, ct);
         if (existing == null)
@@ -158,37 +191,91 @@ public sealed class DealService : IDealService
         }
 
         var update = Builders<Deal>.Update.Set(x => x.updatedAt, DateTime.UtcNow);
-        if (request.Title != null) update = update.Set(x => x.title, request.Title.Trim());
-        if (request.Customer != null) update = update.Set(x => x.customerId, request.Customer);
-        if (request.Value.HasValue) update = update.Set(x => x.value, request.Value.Value);
-        if (request.ExpectedRevenue.HasValue) update = update.Set(x => x.expectedRevenue, request.ExpectedRevenue.Value);
-        if (request.Currency != null) update = update.Set(x => x.currency, request.Currency.Trim().ToUpperInvariant());
-        if (request.ExpectedCloseDate.HasValue) update = update.Set(x => x.expectedCloseDate, request.ExpectedCloseDate.Value);
-        if (request.Owner != null) update = update.Set(x => x.ownerId, request.Owner);
-        if (request.Probability.HasValue) update = update.Set(x => x.probability, request.Probability.Value);
-        if (request.Notes != null) update = update.Set(x => x.notes, request.Notes.Trim());
-        if (request.Contacts != null) update = update.Set(x => x.contacts, request.Contacts);
-        if (request.Quotations != null) update = update.Set(x => x.quotations, request.Quotations);
+        if (request.Title != null)
+            update = update.Set(x => x.title, request.Title.Trim());
+        if (request.Customer != null)
+            update = update.Set(x => x.customerId, request.Customer);
+        if (request.Value.HasValue)
+            update = update.Set(x => x.value, request.Value.Value);
+        if (request.ExpectedRevenue.HasValue)
+            update = update.Set(x => x.expectedRevenue, request.ExpectedRevenue.Value);
+        if (request.Currency != null)
+            update = update.Set(x => x.currency, request.Currency.Trim().ToUpperInvariant());
+        if (request.ExpectedCloseDate.HasValue)
+            update = update.Set(x => x.expectedCloseDate, request.ExpectedCloseDate.Value);
+        if (request.Owner != null)
+            update = update.Set(x => x.ownerId, request.Owner);
+        if (request.Probability.HasValue)
+            update = update.Set(x => x.probability, request.Probability.Value);
+        if (request.Notes != null)
+            update = update.Set(x => x.notes, request.Notes.Trim());
+        if (request.Contacts != null)
+            update = update.Set(x => x.contacts, request.Contacts);
+        if (request.Quotations != null)
+            update = update.Set(x => x.quotations, request.Quotations);
 
-        if (request.Stage != null && !request.Stage.Equals(existing.stage, StringComparison.OrdinalIgnoreCase))
+        if (
+            request.Stage != null
+            && !request.Stage.Equals(existing.stage, StringComparison.OrdinalIgnoreCase)
+        )
         {
             var history = new DealStageHistoryItem
             {
                 stage = request.Stage,
                 changedAt = DateTime.UtcNow,
-                changedBy = _currentUser.UserId
+                changedBy = _currentUser.UserId,
             };
-            update = update
-                .Set(x => x.stage, request.Stage)
-                .Push(x => x.stageHistory, history);
+            update = update.Set(x => x.stage, request.Stage).Push(x => x.stageHistory, history);
         }
+
+        var ownerAssigned =
+            request.Owner != null
+            && !request.Owner.Equals(existing.ownerId, StringComparison.Ordinal);
 
         await _dealRepo.UpdateAsync(id, update, ct);
 
-        if (request.Stage != null && !request.Stage.Equals(existing.stage, StringComparison.OrdinalIgnoreCase))
+        if (
+            request.Stage != null
+            && !request.Stage.Equals(existing.stage, StringComparison.OrdinalIgnoreCase)
+        )
         {
             await _activityAutoLog.LogDealStageChangedAsync(
-                existing.customerId, id, existing.title, existing.stage, request.Stage, ct);
+                existing.customerId,
+                id,
+                existing.title,
+                existing.stage,
+                request.Stage,
+                ct
+            );
+            await PublishPipelineStageEventAsync(id, request.Stage, existing.stage);
+        }
+
+        if (ownerAssigned)
+        {
+            try
+            {
+                var customerId = request.Customer ?? existing.customerId;
+                var customer = await _customerRepo.FindByIdAsync(customerId, ct);
+                var value = request.Value ?? existing.value;
+                var currency = request.Currency?.Trim().ToUpperInvariant() ?? existing.currency;
+
+                await _notificationService.CreateAsync(
+                    new Notification
+                    {
+                        organizationId = _currentUser.OrganizationId,
+                        userId = request.Owner!,
+                        type = NotificationType.DealAssigned,
+                        title = "Deal mới được giao cho bạn",
+                        body = $"{customer?.name ?? "Khách hàng"} — {value:N0} {currency}",
+                        contextUrl = $"/deals/{id}",
+                    },
+                    ct
+                );
+            }
+            catch (Exception)
+            {
+                // Không làm fail flow assign deal nếu gửi notification lỗi.
+            }
         }
 
         return await GetByIdAsync(id, ct);
@@ -202,7 +289,11 @@ public sealed class DealService : IDealService
             : ServiceResult.Fail("NOT_FOUND", "Không tìm thấy deal.");
     }
 
-    public async Task<ServiceResult<DealResponse>> ChangeStageAsync(string id, ChangeDealStageRequest request, CancellationToken ct = default)
+    public async Task<ServiceResult<DealResponse>> ChangeStageAsync(
+        string id,
+        ChangeDealStageRequest request,
+        CancellationToken ct = default
+    )
     {
         if (string.IsNullOrWhiteSpace(request.Stage))
             throw new ValidationException("stage", "Stage là bắt buộc.");
@@ -221,23 +312,67 @@ public sealed class DealService : IDealService
         {
             stage = request.Stage,
             changedAt = DateTime.UtcNow,
-            changedBy = _currentUser.UserId
+            changedBy = _currentUser.UserId,
         };
 
-        var update = Builders<Deal>.Update
-            .Set(x => x.stage, request.Stage)
+        var update = Builders<Deal>
+            .Update.Set(x => x.stage, request.Stage)
             .Set(x => x.updatedAt, DateTime.UtcNow)
             .Push(x => x.stageHistory, history);
 
         await _dealRepo.UpdateAsync(id, update, ct);
 
         await _activityAutoLog.LogDealStageChangedAsync(
-            existing.customerId, id, existing.title, oldStage, request.Stage, ct);
+            existing.customerId,
+            id,
+            existing.title,
+            oldStage,
+            request.Stage,
+            ct
+        );
+        await PublishPipelineStageEventAsync(id, request.Stage, oldStage);
 
         return await GetByIdAsync(id, ct);
     }
 
-    private async Task<ServiceResult<DealResponse>> ValidateDealDataAsync(string customerId, string? ownerId, string stage, int probability, CancellationToken ct)
+    private async Task PublishPipelineStageEventAsync(
+        string dealId,
+        string stage,
+        string previousStage
+    )
+    {
+        try
+        {
+            var eventId = ObjectId.GenerateNewId().ToString();
+            var organizationId = _currentUser.OrganizationId;
+            var createdAt = DateTime.UtcNow;
+
+            await _firebase.WriteFirestoreSubDocAsync(
+                $"pipeline_events/{organizationId}/events/{eventId}",
+                new
+                {
+                    dealId,
+                    stage,
+                    previousStage,
+                    organizationId,
+                    changedBy = _currentUser.UserId,
+                    createdAt,
+                }
+            );
+        }
+        catch (Exception)
+        {
+            // Không làm fail flow chuyển stage nếu ghi Firestore lỗi.
+        }
+    }
+
+    private async Task<ServiceResult<DealResponse>> ValidateDealDataAsync(
+        string customerId,
+        string? ownerId,
+        string stage,
+        int probability,
+        CancellationToken ct
+    )
     {
         if (string.IsNullOrWhiteSpace(customerId))
             throw new ValidationException("customer", "Customer là bắt buộc.");
@@ -248,13 +383,17 @@ public sealed class DealService : IDealService
 
         var customer = await _customerRepo.FindByIdAsync(customerId, ct);
         if (customer == null)
-            return ServiceResult.Fail("INVALID_CUSTOMER", "Customer không tồn tại.").ToTyped<DealResponse>();
+            return ServiceResult
+                .Fail("INVALID_CUSTOMER", "Customer không tồn tại.")
+                .ToTyped<DealResponse>();
 
         if (!string.IsNullOrWhiteSpace(ownerId))
         {
             var owner = await _userRepo.FindByIdAsync(ownerId, ct);
             if (owner == null)
-                return ServiceResult.Fail("INVALID_OWNER", "Owner không tồn tại.").ToTyped<DealResponse>();
+                return ServiceResult
+                    .Fail("INVALID_OWNER", "Owner không tồn tại.")
+                    .ToTyped<DealResponse>();
         }
 
         var stages = await _pipelineStageService.GetAsync(ct);
@@ -271,20 +410,32 @@ public sealed class DealService : IDealService
 
         if (!string.IsNullOrWhiteSpace(sort))
         {
-            var parts = sort.Split(':', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            if (parts.Length > 0) field = parts[0];
-            if (parts.Length > 1) direction = parts[1];
+            var parts = sort.Split(
+                ':',
+                StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries
+            );
+            if (parts.Length > 0)
+                field = parts[0];
+            if (parts.Length > 1)
+                direction = parts[1];
         }
 
         var desc = direction.Equals("desc", StringComparison.OrdinalIgnoreCase);
 
         return field.ToLowerInvariant() switch
         {
-            "title" => desc ? Builders<Deal>.Sort.Descending(x => x.title) : Builders<Deal>.Sort.Ascending(x => x.title),
-            "value" => desc ? Builders<Deal>.Sort.Descending(x => x.value) : Builders<Deal>.Sort.Ascending(x => x.value),
-            "createdat" => desc ? Builders<Deal>.Sort.Descending(x => x.createdAt) : Builders<Deal>.Sort.Ascending(x => x.createdAt),
-            _ => desc ? Builders<Deal>.Sort.Descending(x => x.updatedAt) : Builders<Deal>.Sort.Ascending(x => x.updatedAt)
+            "title" => desc
+                ? Builders<Deal>.Sort.Descending(x => x.title)
+                : Builders<Deal>.Sort.Ascending(x => x.title),
+            "value" => desc
+                ? Builders<Deal>.Sort.Descending(x => x.value)
+                : Builders<Deal>.Sort.Ascending(x => x.value),
+            "createdat" => desc
+                ? Builders<Deal>.Sort.Descending(x => x.createdAt)
+                : Builders<Deal>.Sort.Ascending(x => x.createdAt),
+            _ => desc
+                ? Builders<Deal>.Sort.Descending(x => x.updatedAt)
+                : Builders<Deal>.Sort.Ascending(x => x.updatedAt),
         };
     }
 }
-

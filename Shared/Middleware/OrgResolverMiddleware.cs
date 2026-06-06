@@ -1,5 +1,5 @@
-using CRM.Api.Shared.Models;
 using CRM.Api.Modules.Interfaces.Repositories;
+using CRM.Api.Shared.Models;
 
 namespace CRM.Api.Shared.Middleware;
 
@@ -13,15 +13,17 @@ public sealed class OrgResolverMiddleware
     public async Task InvokeAsync(
         HttpContext context,
         CurrentUser currentUser,
-        IUserRepository userRepo)
+        IUserRepository userRepo
+    )
     {
         if (context.User.Identity?.IsAuthenticated == true)
         {
-            currentUser.UserId         = context.User.FindFirst("sub")?.Value             ?? string.Empty;
-            currentUser.OrganizationId = context.User.FindFirst("organizationId")?.Value ?? string.Empty;
-            currentUser.Email          = context.User.FindFirst("email")?.Value          ?? string.Empty;
-            currentUser.DepartmentId   = context.User.FindFirst("departmentId")?.Value;
-            currentUser.TeamId         = context.User.FindFirst("teamId")?.Value;
+            currentUser.UserId = context.User.FindFirst("sub")?.Value ?? string.Empty;
+            currentUser.OrganizationId =
+                context.User.FindFirst("organizationId")?.Value ?? string.Empty;
+            currentUser.Email = context.User.FindFirst("email")?.Value ?? string.Empty;
+            currentUser.DepartmentId = context.User.FindFirst("departmentId")?.Value;
+            currentUser.TeamId = context.User.FindFirst("teamId")?.Value;
 
             var roleClaim = context.User.FindFirst("role")?.Value;
             if (roleClaim != null && int.TryParse(roleClaim, out var role))
@@ -33,13 +35,15 @@ public sealed class OrgResolverMiddleware
             if (dbUser is null || !dbUser.isActive)
             {
                 context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                await context.Response.WriteAsJsonAsync(new
-                {
-                    type   = "https://tools.ietf.org/html/rfc7235#section-3.1",
-                    title  = "Unauthorized",
-                    status = 401,
-                    detail = "Tài khoản của bạn đã bị vô hiệu hóa."
-                });
+                await context.Response.WriteAsJsonAsync(
+                    new
+                    {
+                        type = "https://tools.ietf.org/html/rfc7235#section-3.1",
+                        title = "Unauthorized",
+                        status = 401,
+                        detail = "Tài khoản của bạn đã bị vô hiệu hóa.",
+                    }
+                );
                 return;
             }
         }

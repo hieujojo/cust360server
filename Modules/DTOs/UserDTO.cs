@@ -95,17 +95,17 @@ public sealed class ResetPasswordRequest
 /// <summary>GET /api/admin/users</summary>
 public sealed class GetUsersRequest
 {
-    public int?    Role         { get; set; }
+    public int? Role { get; set; }
     public string? DepartmentId { get; set; }
-    public bool?   IsActive     { get; set; }
+    public bool? IsActive { get; set; }
 
     /// <summary>Lọc theo team.</summary>
-    public string? TeamId       { get; set; }
+    public string? TeamId { get; set; }
 
     /// <summary>Tìm theo tên hoặc email.</summary>
-    public string? Search   { get; set; }
-    public int     Page     { get; set; } = 1;
-    public int     PageSize { get; set; } = 20;
+    public string? Search { get; set; }
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 20;
 }
 
 // ============================================================================
@@ -153,13 +153,13 @@ public sealed class ChangePasswordRequest
 /// <summary>GET /api/admin/audit-logs</summary>
 public sealed class GetAuditLogsRequest
 {
-    public string?   Action       { get; set; }
-    public string?   ActorId      { get; set; }
-    public string?   TargetUserId { get; set; }
-    public DateTime? FromDate     { get; set; }
-    public DateTime? ToDate       { get; set; }
-    public int       Page         { get; set; } = 1;
-    public int       PageSize     { get; set; } = 50;
+    public string? Action { get; set; }
+    public string? ActorId { get; set; }
+    public string? TargetUserId { get; set; }
+    public DateTime? FromDate { get; set; }
+    public DateTime? ToDate { get; set; }
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 50;
 }
 
 // ============================================================================
@@ -169,40 +169,40 @@ public sealed class GetAuditLogsRequest
 /// <summary>Thông tin user trả về client. Không expose Password.</summary>
 public sealed class UserResponse
 {
-    public string  Id             { get; init; } = string.Empty;
-    public string  OrganizationId { get; init; } = string.Empty;
-    public string  EmployeeCode   { get; init; } = string.Empty;
-    public string  Email          { get; init; } = string.Empty;
-    public string  DisplayName    { get; init; } = string.Empty;
+    public string Id { get; init; } = string.Empty;
+    public string OrganizationId { get; init; } = string.Empty;
+    public string EmployeeCode { get; init; } = string.Empty;
+    public string Email { get; init; } = string.Empty;
+    public string DisplayName { get; init; } = string.Empty;
 
     /// <summary>Số role: 1 / 2 / 3</summary>
-    public int     Role           { get; init; }
+    public int Role { get; init; }
 
     /// <summary>Tên role: Owner / Admin / User</summary>
-    public string  RoleName       { get; init; } = string.Empty;
+    public string RoleName { get; init; } = string.Empty;
 
-    public string? DepartmentId   { get; init; }
+    public string? DepartmentId { get; init; }
 
     /// <summary>Tên phòng ban — lookup từ departments collection.</summary>
     public string? DepartmentName { get; init; }
 
-    public string? TeamId         { get; init; }
+    public string? TeamId { get; init; }
 
     /// <summary>Tên team — lookup từ teams collection.</summary>
-    public string? TeamName       { get; init; }
+    public string? TeamName { get; init; }
 
     /// <summary>True nếu user là lead của team mình.</summary>
-    public bool    IsTeamLead     { get; init; }
+    public bool IsTeamLead { get; init; }
 
-    public string? Phone          { get; init; }
-    public string? AvatarUrl      { get; init; }
+    public string? Phone { get; init; }
+    public string? AvatarUrl { get; init; }
 
     /// <summary>"Active" hoặc "Inactive" — thân thiện hơn boolean.</summary>
-    public string  Status         { get; init; } = string.Empty;
+    public string Status { get; init; } = string.Empty;
 
-    public DateTime CreatedAt     { get; init; }
-    public DateTime UpdatedAt     { get; init; }
-    public string?  CreatedBy     { get; init; }
+    public DateTime CreatedAt { get; init; }
+    public DateTime UpdatedAt { get; init; }
+    public string? CreatedBy { get; init; }
 }
 
 // ============================================================================
@@ -213,7 +213,7 @@ public sealed class LoginResponse
 {
     public string AccessToken { get; set; } = string.Empty;
     public DateTime ExpiresAt { get; set; }
-    public UserResponse User  { get; set; } = null!;
+    public UserResponse User { get; set; } = null!;
 }
 
 // ============================================================================
@@ -223,14 +223,14 @@ public sealed class LoginResponse
 /// <summary>Thông tin audit log trả về client.</summary>
 public sealed class AuditLogResponse
 {
-    public string  Id              { get; init; } = string.Empty;
-    public string? ActorId         { get; init; }
-    public string  ActorEmail      { get; init; } = string.Empty;
-    public string  Action          { get; init; } = string.Empty;
-    public string? TargetUserId    { get; init; }
+    public string Id { get; init; } = string.Empty;
+    public string? ActorId { get; init; }
+    public string ActorEmail { get; init; } = string.Empty;
+    public string Action { get; init; } = string.Empty;
+    public string? TargetUserId { get; init; }
     public string? TargetUserEmail { get; init; }
-    public string? IpAddress       { get; init; }
-    public string? UserAgent       { get; init; }
+    public string? IpAddress { get; init; }
+    public string? UserAgent { get; init; }
     public Dictionary<string, string>? Metadata { get; init; }
-    public DateTime CreatedAt      { get; init; }
+    public DateTime CreatedAt { get; init; }
 }

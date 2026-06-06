@@ -108,3 +108,5 @@ yarn-error.log*
 # Kiro AI
 # ============================================================================
 .kiro/cache/
+
+firebase-credentials.json

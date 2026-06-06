@@ -1,5 +1,9 @@
 using CRM.Api.Infrastructure.Extensions;
+using CRM.Api.Infrastructure.Settings;
 using CRM.Api.Modules;
+using CRM.Api.Modules.Repositories;
+using CRM.Api.Modules.Services;
+using CRM.Api.Services;
 using CRM.Api.Shared.Extensions;
 using CRM.Api.Shared.Middleware;
 using Serilog;
@@ -17,6 +21,13 @@ Log.Logger = new LoggerConfiguration()
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Host.UseSerilog();
+
+builder.Services.Configure<FirebaseSettings>(
+    builder.Configuration.GetSection(FirebaseSettings.SectionName)
+);
+builder.Services.AddSingleton<FirebaseService>();
+builder.Services.AddScoped<NotificationRepository>();
+builder.Services.AddScoped<NotificationService>();
 
 builder
     .Services.AddMongoDb(builder.Configuration)

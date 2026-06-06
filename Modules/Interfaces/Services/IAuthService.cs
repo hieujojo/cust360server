@@ -13,18 +13,21 @@ public interface IAuthService
         LoginRequest request,
         string? ipAddress = null,
         string? userAgent = null,
-        CancellationToken ct = default);
+        CancellationToken ct = default
+    );
 
     /// <summary>Gửi email chứa link reset mật khẩu. Luôn trả về Ok để tránh email enumeration.</summary>
     Task<ServiceResult> ForgotPasswordAsync(
         ForgotPasswordRequest request,
         string? clientBaseUrl = null,
-        CancellationToken ct = default);
+        CancellationToken ct = default
+    );
 
     /// <summary>Xác thực token và đặt mật khẩu mới.</summary>
     Task<ServiceResult> ResetPasswordByTokenAsync(
         ResetPasswordByTokenRequest request,
         string? ipAddress = null,
         string? userAgent = null,
-        CancellationToken ct = default);
+        CancellationToken ct = default
+    );
 }

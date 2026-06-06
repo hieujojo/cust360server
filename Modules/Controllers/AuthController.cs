@@ -1,8 +1,9 @@
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
 using CRM.Api.Modules.DTOs;
 using CRM.Api.Modules.Interfaces.Services;
+using CRM.Api.Services;
 using CRM.Api.Shared.Authorization;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 
 namespace CRM.Api.Modules.Controllers;
 
@@ -13,9 +14,13 @@ namespace CRM.Api.Modules.Controllers;
 public sealed class AuthController : ControllerBase
 {
     private readonly IAuthService _authService;
+    private readonly FirebaseService _firebaseService;
 
-    public AuthController(IAuthService authService)
-        => _authService = authService;
+    public AuthController(IAuthService authService, FirebaseService firebaseService)
+    {
+        _authService = authService;
+        _firebaseService = firebaseService; // ← thêm
+    }
 
     /// <summary>Đăng nhập bằng email + password. Trả về JWT access token.</summary>
     [HttpPost("login")]
@@ -24,20 +29,33 @@ public sealed class AuthController : ControllerBase
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> Login([FromBody] LoginRequest request, CancellationToken ct)
     {
-        if (!ModelState.IsValid) return BadRequest(ModelState);
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
 
         var result = await _authService.LoginAsync(
             request,
             HttpContext.Connection.RemoteIpAddress?.ToString(),
             Request.Headers.UserAgent.ToString(),
-            ct);
+            ct
+        );
 
         if (!result.IsSuccess)
             return result.ErrorCode == "ACCOUNT_INACTIVE"
                 ? Unauthorized(new { result.ErrorCode, result.ErrorMessage })
                 : Unauthorized(new { result.ErrorCode, result.ErrorMessage });
+        if (result.Data is null)
+            return StatusCode(500, new { ErrorMessage = "Lỗi server." });
+        var firebaseToken = await _firebaseService.CreateCustomTokenAsync(result.Data.User.Id);
 
-        return Ok(result.Data);
+        return Ok(
+            new
+            {
+                result.Data.AccessToken,
+                result.Data.ExpiresAt,
+                result.Data.User,
+                FirebaseToken = firebaseToken,
+            }
+        );
     }
 
     /// <summary>Đăng xuất. Phase 1: stateless JWT, client tự xóa token.</summary>
@@ -55,30 +73,44 @@ public sealed class AuthController : ControllerBase
     /// <summary>Gửi email link đặt lại mật khẩu. Luôn trả 200 để tránh email enumeration.</summary>
     [HttpPost("forgot-password")]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest request, CancellationToken ct)
+    public async Task<IActionResult> ForgotPassword(
+        [FromBody] ForgotPasswordRequest request,
+        CancellationToken ct
+    )
     {
-        if (!ModelState.IsValid) return BadRequest(ModelState);
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
 
         var clientBaseUrl = $"{Request.Scheme}://{Request.Host}";
         await _authService.ForgotPasswordAsync(request, clientBaseUrl, ct);
 
         // Luôn trả 200 — không tiết lộ email có tồn tại hay không
-        return Ok(new { message = "Nếu email tồn tại, bạn sẽ nhận được link đặt lại mật khẩu trong vài phút." });
+        return Ok(
+            new
+            {
+                message = "Nếu email tồn tại, bạn sẽ nhận được link đặt lại mật khẩu trong vài phút.",
+            }
+        );
     }
 
     /// <summary>Đặt lại mật khẩu bằng token từ email.</summary>
     [HttpPost("reset-password")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordByTokenRequest request, CancellationToken ct)
+    public async Task<IActionResult> ResetPassword(
+        [FromBody] ResetPasswordByTokenRequest request,
+        CancellationToken ct
+    )
     {
-        if (!ModelState.IsValid) return BadRequest(ModelState);
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
 
         var result = await _authService.ResetPasswordByTokenAsync(
             request,
             HttpContext.Connection.RemoteIpAddress?.ToString(),
             Request.Headers.UserAgent.ToString(),
-            ct);
+            ct
+        );
 
         if (!result.IsSuccess)
             return BadRequest(new { result.ErrorCode, result.ErrorMessage });
