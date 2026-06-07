@@ -1,4 +1,5 @@
 using CRM.Api.Infrastructure.Email;
+using CRM.Api.Infrastructure.Storage;
 using CRM.Api.Modules.DTOs;
 using CRM.Api.Modules.Interfaces.Repositories;
 using CRM.Api.Modules.Interfaces.Services;
@@ -18,26 +19,29 @@ public sealed class UserService : IUserService
     private readonly IUserRepository _userRepo;
     private readonly IAuditLogService _auditLogService;
     private readonly IEmailService _emailService;
-    private readonly IDepartmentRepository _deptRepo;
+    private readonly IOrganizationRepository _organizationRepo;
     private readonly ITeamRepository _teamRepo;
     private readonly CurrentUser _currentUser;
+    private readonly ICloudinaryStorageService _storageService;
 
     public UserService(
         IUserRepository userRepo,
         IAuditLogService auditLogService,
         IEmailService emailService,
-        IDepartmentRepository deptRepo,
+        IOrganizationRepository organizationRepo,
         ITeamRepository teamRepo,
         CurrentUser currentUser,
+        ICloudinaryStorageService storageService,
         ILogger<UserService> logger
     )
     {
         _userRepo = userRepo;
         _auditLogService = auditLogService;
         _emailService = emailService;
-        _deptRepo = deptRepo;
+        _organizationRepo = organizationRepo;
         _teamRepo = teamRepo;
         _currentUser = currentUser;
+        _storageService = storageService;
     }
 
     // ─── Create ──────────────────────────────────────────────────────────────
@@ -164,6 +168,56 @@ public sealed class UserService : IUserService
         return ServiceResult<UserResponse>.Ok(await EnrichUserResponseAsync(updated!, ct));
     }
 
+    public async Task<ServiceResult<UserResponse>> UploadAvatarAsync(
+        string userId,
+        Stream content,
+        string fileName,
+        string contentType,
+        CancellationToken ct = default
+    )
+    {
+        var allowedTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "image/png",
+            "image/jpeg",
+            "image/jpg",
+            "image/webp",
+        };
+        if (!allowedTypes.Contains(contentType))
+            return ServiceResult<UserResponse>.Fail(
+                "INVALID_FILE_TYPE",
+                "Chỉ chấp nhận file ảnh PNG, JPG, WEBP."
+            );
+
+        if (content.Length > 2 * 1024 * 1024)
+            return ServiceResult<UserResponse>.Fail("FILE_TOO_LARGE", "Ảnh đại diện tối đa 2MB.");
+
+        var user = await _userRepo.FindByIdAsync(userId, ct);
+        if (user is null)
+            return ServiceResult<UserResponse>.Fail("NOT_FOUND", "Không tìm thấy user.");
+
+        var avatarUrl = await _storageService.UploadAsync(
+            content,
+            fileName,
+            contentType,
+            "crm360/avatar-user",
+            ct
+        );
+
+        if (!string.IsNullOrEmpty(user.avatarUrl))
+        {
+            await _storageService.DeleteByUrlAsync(user.avatarUrl, ct);
+        }
+
+        var update = Builders<User>
+            .Update.Set(x => x.avatarUrl, avatarUrl)
+            .Set(x => x.updatedAt, DateTime.UtcNow);
+        await _userRepo.UpdateAsync(userId, update, ct);
+
+        var updated = await _userRepo.FindByIdAsync(userId, ct);
+        return ServiceResult<UserResponse>.Ok(await EnrichUserResponseAsync(updated!, ct));
+    }
+
     // ─── Toggle Status ───────────────────────────────────────────────────────
 
     public async Task<ServiceResult> ToggleUserStatusAsync(
@@ -238,6 +292,7 @@ public sealed class UserService : IUserService
             request.Role,
             deptFilter,
             request.IsActive,
+            request.Status,
             request.Search,
             request.Page,
             request.PageSize,
@@ -281,8 +336,8 @@ public sealed class UserService : IUserService
 
         if (!string.IsNullOrEmpty(user.departmentId))
         {
-            var dept = await _deptRepo.FindByIdAsync(user.departmentId, ct);
-            deptName = dept?.name;
+            var org = await _organizationRepo.GetOrCreateCurrentAsync(ct);
+            deptName = org.departments.FirstOrDefault(d => d.id == user.departmentId)?.name;
         }
 
         if (!string.IsNullOrEmpty(user.teamId))
@@ -327,7 +382,8 @@ public sealed class UserService : IUserService
             if (!MongoDB.Bson.ObjectId.TryParse(departmentId, out _))
                 return ServiceResult.Fail("DEPT_INVALID", "ID phòng ban không hợp lệ.");
 
-            var dept = await _deptRepo.FindByIdAsync(departmentId, ct);
+            var org = await _organizationRepo.GetOrCreateCurrentAsync(ct);
+            var dept = org.departments.FirstOrDefault(d => d.id == departmentId);
             if (dept is null)
                 return ServiceResult.Fail("DEPT_NOT_FOUND", "Không tìm thấy phòng ban.");
         }

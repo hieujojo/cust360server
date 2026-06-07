@@ -33,6 +33,7 @@ builder
     .Services.AddMongoDb(builder.Configuration)
     .AddJwtAuthentication(builder.Configuration)
     .AddEmail(builder.Configuration)
+    .AddCloudinaryStorage(builder.Configuration)
     .AddCurrentUser()
     .AddRoleBasedAuthorization()
     .AddDefaultCors(builder.Configuration)
@@ -43,6 +44,7 @@ builder
     .Services.AddIdentityModule()
     .AddCustomerModule()
     .AddSalesModule()
+    .AddSettingsModule()
     .AddActivityModule(builder.Configuration);
 
 builder.Services.AddHealthChecks();
@@ -64,7 +66,6 @@ app.UseMiddleware<ErrorHandlerMiddleware>();
 if (app.Environment.IsDevelopment())
     app.UseSwaggerUi();
 
-app.UseHttpsRedirection();
 app.UseCors();
 app.UseAuthentication();
 app.UseMiddleware<OrgResolverMiddleware>();

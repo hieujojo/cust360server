@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <!-- MongoDB Driver -->
+    <PackageReference Include="CloudinaryDotNet" Version="1.29.1" />
     <PackageReference Include="DotNetEnv" Version="3.2.0" />
     <PackageReference Include="MongoDB.Driver" Version="2.28.0" />
 
@@ -31,5 +32,6 @@
     <PackageReference Include="Google.Apis.Auth" Version="1.69.0" />
     <PackageReference Include="Google.Apis.Gmail.v1" Version="1.69.0.3742" />
     <PackageReference Include="Google.Apis.Calendar.v3" Version="1.69.0.3667" />
+
   </ItemGroup>
 </Project>

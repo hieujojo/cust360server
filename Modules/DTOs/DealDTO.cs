@@ -88,6 +88,7 @@ public sealed class PipelineStageResponse
     public string Name { get; init; } = string.Empty;
     public int Order { get; init; }
     public string Color { get; init; } = string.Empty;
+    public int DefaultProbability { get; init; }
     public int StuckThreshold { get; init; }
 }
 
@@ -95,6 +96,7 @@ public sealed class UpsertPipelineStageRequest
 {
     public string Name { get; set; } = string.Empty;
     public string Color { get; set; } = "#2563eb";
+    public int DefaultProbability { get; set; } = 0;
     public int StuckThreshold { get; set; } = 7;
 }
 

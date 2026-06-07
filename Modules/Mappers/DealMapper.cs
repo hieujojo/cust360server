@@ -42,6 +42,7 @@ public static class DealMapper
             Name = stage.name,
             Order = stage.order,
             Color = stage.color,
+            DefaultProbability = stage.defaultProbability,
             StuckThreshold = stage.stuckThreshold
         };
 }

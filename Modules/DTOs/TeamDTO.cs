@@ -15,9 +15,6 @@ public sealed class CreateTeamRequest
 
     [MaxLength(500)]
     public string? Description { get; set; }
-
-    /// <summary>UserId của team lead. Có thể để trống khi tạo.</summary>
-    public string? LeadId { get; set; }
 }
 
 /// <summary>PUT /api/settings/departments/{departmentId}/teams/{id}</summary>

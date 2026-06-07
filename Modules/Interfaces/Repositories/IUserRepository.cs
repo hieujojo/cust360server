@@ -13,8 +13,12 @@ public interface IUserRepository
     Task<User?> FindByEmailAsync(string email, CancellationToken ct = default);
 
     Task<(List<User> Items, long Total)> FindPagedAsync(
-        int? role, string? departmentId, bool? isActive, string? search,
+        int? role, string? departmentId, bool? isActive, string? status, string? search,
         int page, int pageSize, CancellationToken ct = default);
+
+    Task<long> CountByDepartmentAsync(string departmentId, CancellationToken ct = default);
+
+    Task SetLastLoginAsync(string id, DateTime loginAt, CancellationToken ct = default);
 
     Task<List<User>> FindAllAsync(CancellationToken ct = default);
 

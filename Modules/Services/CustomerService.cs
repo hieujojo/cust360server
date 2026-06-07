@@ -14,7 +14,7 @@ public sealed class CustomerService : ICustomerService
 {
     private readonly ICustomerRepository _customerRepo;
     private readonly IUserRepository _userRepo;
-    private readonly IDepartmentRepository _departmentRepo;
+    private readonly IOrganizationRepository _organizationRepo;
     private readonly IAuditLogService _auditLogService;
     private readonly ICustomerCodeGenerator _codeGenerator;
     private readonly AtlasSearchService _searchService;
@@ -23,7 +23,7 @@ public sealed class CustomerService : ICustomerService
     public CustomerService(
         ICustomerRepository customerRepo,
         IUserRepository userRepo,
-        IDepartmentRepository departmentRepo,
+        IOrganizationRepository organizationRepo,
         IAuditLogService auditLogService,
         ICustomerCodeGenerator codeGenerator,
         AtlasSearchService searchService,
@@ -31,7 +31,7 @@ public sealed class CustomerService : ICustomerService
     {
         _customerRepo = customerRepo;
         _userRepo = userRepo;
-        _departmentRepo = departmentRepo;
+        _organizationRepo = organizationRepo;
         _auditLogService = auditLogService;
         _codeGenerator = codeGenerator;
         _searchService = searchService;
@@ -123,7 +123,7 @@ public sealed class CustomerService : ICustomerService
         }
 
         var owner = await _userRepo.FindByIdAsync(customer.ownerId, ct);
-        var dept = string.IsNullOrEmpty(customer.departmentId) ? null : await _departmentRepo.FindByIdAsync(customer.departmentId, ct);
+        var dept = string.IsNullOrEmpty(customer.departmentId) ? null : await _organizationRepo.GetDepartmentByIdAsync(customer.departmentId, ct);
 
         return ServiceResult<CustomerResponse>.Ok(customer.ToResponse(owner, dept));
     }
@@ -163,7 +163,7 @@ public sealed class CustomerService : ICustomerService
 
             if (request.DepartmentId != null)
             {
-                var newDept = await _departmentRepo.FindByIdAsync(request.DepartmentId, ct);
+                var newDept = await _organizationRepo.GetDepartmentByIdAsync(request.DepartmentId, ct);
                 if (newDept == null)
                     return ServiceResult<CustomerResponse>.Fail("INVALID_DEPARTMENT", "Phòng ban không tồn tại.");
                 
@@ -300,7 +300,7 @@ public sealed class CustomerService : ICustomerService
             throw new ForbiddenException("Bạn không có quyền truy cập khách hàng của phòng ban khác.");
 
         var owner = await _userRepo.FindByIdAsync(customer.ownerId, ct);
-        var dept = string.IsNullOrEmpty(customer.departmentId) ? null : await _departmentRepo.FindByIdAsync(customer.departmentId, ct);
+        var dept = string.IsNullOrEmpty(customer.departmentId) ? null : await _organizationRepo.GetDepartmentByIdAsync(customer.departmentId, ct);
 
         var infoTab = customer.ToInfoTab(owner, dept);
         

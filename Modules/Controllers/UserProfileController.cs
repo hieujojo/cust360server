@@ -1,8 +1,8 @@
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
 using CRM.Api.Modules.DTOs;
 using CRM.Api.Modules.Interfaces.Services;
 using CRM.Api.Shared.Authorization;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 
 namespace CRM.Api.Modules.Controllers;
 
@@ -15,8 +15,7 @@ public sealed class UserProfileController : ControllerBase
 {
     private readonly IUserService _userService;
 
-    public UserProfileController(IUserService userService)
-        => _userService = userService;
+    public UserProfileController(IUserService userService) => _userService = userService;
 
     /// <summary>Xem profile của chính mình.</summary>
     [HttpGet]
@@ -26,7 +25,9 @@ public sealed class UserProfileController : ControllerBase
     {
         var userId = User.FindFirst("sub")?.Value;
         if (string.IsNullOrEmpty(userId))
-            return Unauthorized(new { ErrorCode = "INVALID_TOKEN", ErrorMessage = "Token không hợp lệ." });
+            return Unauthorized(
+                new { ErrorCode = "INVALID_TOKEN", ErrorMessage = "Token không hợp lệ." }
+            );
 
         var result = await _userService.GetByIdAsync(userId, ct);
         return result.IsSuccess
@@ -39,20 +40,27 @@ public sealed class UserProfileController : ControllerBase
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> UpdateMyProfile([FromBody] UpdateUserRequest request, CancellationToken ct)
+    public async Task<IActionResult> UpdateMyProfile(
+        [FromBody] UpdateUserRequest request,
+        CancellationToken ct
+    )
     {
-        if (!ModelState.IsValid) return BadRequest(ModelState);
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
 
         var userId = User.FindFirst("sub")?.Value;
         if (string.IsNullOrEmpty(userId))
-            return Unauthorized(new { ErrorCode = "INVALID_TOKEN", ErrorMessage = "Token không hợp lệ." });
+            return Unauthorized(
+                new { ErrorCode = "INVALID_TOKEN", ErrorMessage = "Token không hợp lệ." }
+            );
 
         var result = await _userService.UpdateUserAsync(
             userId,
             request,
             HttpContext.Connection.RemoteIpAddress?.ToString(),
             Request.Headers.UserAgent.ToString(),
-            ct);
+            ct
+        );
 
         if (!result.IsSuccess)
             return result.ErrorCode == "NOT_FOUND"
@@ -62,23 +70,63 @@ public sealed class UserProfileController : ControllerBase
         return Ok(result.Data);
     }
 
+    /// <summary>Upload ảnh đại diện.</summary>
+    [HttpPost("avatar")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> UploadAvatar(IFormFile? file, CancellationToken ct)
+    {
+        if (file is null || file.Length == 0)
+            return BadRequest(
+                new { ErrorCode = "FILE_REQUIRED", ErrorMessage = "Vui lòng chọn file." }
+            );
+
+        var userId = User.FindFirst("sub")?.Value;
+        if (string.IsNullOrEmpty(userId))
+            return Unauthorized(
+                new { ErrorCode = "INVALID_TOKEN", ErrorMessage = "Token không hợp lệ." }
+            );
+
+        using var stream = file.OpenReadStream();
+        var result = await _userService.UploadAvatarAsync(
+            userId,
+            stream,
+            file.FileName,
+            file.ContentType,
+            ct
+        );
+
+        if (!result.IsSuccess)
+            return BadRequest(new { result.ErrorCode, result.ErrorMessage });
+
+        return Ok(result.Data);
+    }
+
     /// <summary>Đổi password của chính mình.</summary>
     [HttpPut("password")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest request, CancellationToken ct)
+    public async Task<IActionResult> ChangePassword(
+        [FromBody] ChangePasswordRequest request,
+        CancellationToken ct
+    )
     {
-        if (!ModelState.IsValid) return BadRequest(ModelState);
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
 
         var userId = User.FindFirst("sub")?.Value;
         if (string.IsNullOrEmpty(userId))
-            return Unauthorized(new { ErrorCode = "INVALID_TOKEN", ErrorMessage = "Token không hợp lệ." });
+            return Unauthorized(
+                new { ErrorCode = "INVALID_TOKEN", ErrorMessage = "Token không hợp lệ." }
+            );
 
         var result = await _userService.ChangePasswordAsync(
-            userId, request,
+            userId,
+            request,
             HttpContext.Connection.RemoteIpAddress?.ToString(),
             Request.Headers.UserAgent.ToString(),
-            ct);
+            ct
+        );
 
         if (!result.IsSuccess)
             return BadRequest(new { result.ErrorCode, result.ErrorMessage });

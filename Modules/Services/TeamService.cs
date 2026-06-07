@@ -12,7 +12,7 @@ namespace CRM.Api.Modules.Services;
 public sealed class TeamService : ITeamService
 {
     private readonly ITeamRepository       _teamRepo;
-    private readonly IDepartmentRepository _deptRepo;
+    private readonly IOrganizationRepository _organizationRepo;
 
     // Dùng BsonDocument collection để lookup tên lead từ users
     // Tránh circular dependency với Identity module
@@ -21,12 +21,12 @@ public sealed class TeamService : ITeamService
 
     public TeamService(
         ITeamRepository teamRepo,
-        IDepartmentRepository deptRepo,
+        IOrganizationRepository organizationRepo,
         Infrastructure.MongoDB.MongoDbContext dbContext,
         CurrentUser currentUser)
     {
         _teamRepo    = teamRepo;
-        _deptRepo    = deptRepo;
+        _organizationRepo = organizationRepo;
         _dbContext   = dbContext;
         _currentUser = currentUser;
     }
@@ -34,7 +34,7 @@ public sealed class TeamService : ITeamService
     public async Task<ServiceResult<TeamResponse>> CreateAsync(
         string departmentId, CreateTeamRequest request, CancellationToken ct = default)
     {
-        var dept = await _deptRepo.FindByIdAsync(departmentId, ct);
+        var dept = await _organizationRepo.GetDepartmentByIdAsync(departmentId, ct);
         if (dept is null)
             return ServiceResult<TeamResponse>.Fail("DEPT_NOT_FOUND", "Không tìm thấy phòng ban.");
 
@@ -42,13 +42,6 @@ public sealed class TeamService : ITeamService
             return ServiceResult<TeamResponse>.Fail("NAME_EXISTS",
                 $"Team '{request.Name}' đã tồn tại trong phòng ban này.");
 
-        // Validate leadId nếu có
-        if (!string.IsNullOrEmpty(request.LeadId))
-        {
-            var leadExists = await UserExistsAsync(request.LeadId, ct);
-            if (!leadExists)
-                return ServiceResult<TeamResponse>.Fail("LEAD_NOT_FOUND", "Không tìm thấy user được chỉ định làm lead.");
-        }
 
         var team = new Team
         {
@@ -56,7 +49,7 @@ public sealed class TeamService : ITeamService
             departmentId   = departmentId,
             name           = request.Name.Trim(),
             description    = request.Description?.Trim(),
-            leadId         = string.IsNullOrEmpty(request.LeadId) ? null : request.LeadId,
+            leadId         = null,
             createdBy      = _currentUser.UserId,
             createdAt      = DateTime.UtcNow,
             updatedAt      = DateTime.UtcNow,
@@ -71,7 +64,7 @@ public sealed class TeamService : ITeamService
     public async Task<ServiceResult<TeamResponse>> UpdateAsync(
         string departmentId, string id, UpdateTeamRequest request, CancellationToken ct = default)
     {
-        var dept = await _deptRepo.FindByIdAsync(departmentId, ct);
+        var dept = await _organizationRepo.GetDepartmentByIdAsync(departmentId, ct);
         if (dept is null)
             return ServiceResult<TeamResponse>.Fail("DEPT_NOT_FOUND", "Không tìm thấy phòng ban.");
 
@@ -86,9 +79,9 @@ public sealed class TeamService : ITeamService
         // Validate leadId nếu có
         if (!string.IsNullOrEmpty(request.LeadId))
         {
-            var leadExists = await UserExistsAsync(request.LeadId, ct);
-            if (!leadExists)
-                return ServiceResult<TeamResponse>.Fail("LEAD_NOT_FOUND", "Không tìm thấy user được chỉ định làm lead.");
+            var leadValidation = await ValidateLeadAsync(request.LeadId, departmentId, id, ct);
+            if (!leadValidation.IsSuccess)
+                return leadValidation.ToTyped<TeamResponse>();
         }
 
         var update = Builders<Team>.Update.Set(x => x.updatedAt, DateTime.UtcNow);
@@ -123,7 +116,7 @@ public sealed class TeamService : ITeamService
     public async Task<ServiceResult<TeamResponse>> GetByIdAsync(
         string departmentId, string id, CancellationToken ct = default)
     {
-        var dept = await _deptRepo.FindByIdAsync(departmentId, ct);
+        var dept = await _organizationRepo.GetDepartmentByIdAsync(departmentId, ct);
         if (dept is null)
             return ServiceResult<TeamResponse>.Fail("DEPT_NOT_FOUND", "Không tìm thấy phòng ban.");
 
@@ -139,7 +132,7 @@ public sealed class TeamService : ITeamService
 
     public async Task<List<TeamResponse>> GetByDepartmentAsync(string departmentId, CancellationToken ct = default)
     {
-        var dept = await _deptRepo.FindByIdAsync(departmentId, ct);
+        var dept = await _organizationRepo.GetDepartmentByIdAsync(departmentId, ct);
         Console.WriteLine($"[DEBUG] departmentId={departmentId}, dept={dept?.name ?? "NULL"}");
         if (dept is null) return [];
 
@@ -168,7 +161,7 @@ public sealed class TeamService : ITeamService
 
     // ─── Private helpers ─────────────────────────────────────────────────────
 
-    private async Task<bool> UserExistsAsync(string userId, CancellationToken ct)
+    private async Task<ServiceResult> ValidateLeadAsync(string userId, string departmentId, string teamId, CancellationToken ct)
     {
         var collection = _dbContext.GetCollection<MongoDB.Bson.BsonDocument>("users");
         var filter = MongoDB.Driver.Builders<MongoDB.Bson.BsonDocument>.Filter.And(
@@ -176,7 +169,17 @@ public sealed class TeamService : ITeamService
             MongoDB.Driver.Builders<MongoDB.Bson.BsonDocument>.Filter.Eq("organizationId", _currentUser.OrganizationId),
             MongoDB.Driver.Builders<MongoDB.Bson.BsonDocument>.Filter.Eq("isDeleted", false));
 
-        return await collection.Find(filter).AnyAsync(ct);
+        var user = await collection.Find(filter).FirstOrDefaultAsync(ct);
+        if (user == null)
+            return ServiceResult.Fail("LEAD_NOT_FOUND", "Không tìm thấy user được chỉ định làm lead.");
+
+        var userDeptId = user.GetValue("departmentId", MongoDB.Bson.BsonNull.Value);
+        var userTeamId = user.GetValue("teamId", MongoDB.Bson.BsonNull.Value);
+
+        if (userDeptId.IsBsonNull || userDeptId.AsString != departmentId || userTeamId.IsBsonNull || userTeamId.AsString != teamId)
+            return ServiceResult.Fail("LEAD_TEAM_MISMATCH", "Người được chọn làm lead bắt buộc phải là thành viên của team này.");
+
+        return ServiceResult.Ok();
     }
 
     private async Task<string?> GetUserDisplayNameAsync(string? userId, CancellationToken ct)

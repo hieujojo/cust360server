@@ -25,6 +25,8 @@ public sealed class UpdateDepartmentRequest
 
     [MaxLength(500)]
     public string? Description { get; set; }
+
+    public string? ManagerId { get; set; }
 }
 
 // ============================================================================
@@ -36,9 +38,14 @@ public sealed class DepartmentResponse
     public string  Id          { get; init; } = string.Empty;
     public string  Name        { get; init; } = string.Empty;
     public string? Description { get; init; }
+    public string? ManagerId   { get; init; }
+    public string? ManagerName { get; init; }
 
     /// <summary>Số lượng teams thuộc phòng ban này.</summary>
     public int     TeamCount   { get; init; }
+
+    /// <summary>Số lượng users được gán vào phòng ban.</summary>
+    public int     UserCount   { get; init; }
 
     public DateTime CreatedAt  { get; init; }
     public DateTime UpdatedAt  { get; init; }

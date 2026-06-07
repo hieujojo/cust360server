@@ -19,6 +19,10 @@ public interface IUserService
         string? ipAddress = null, string? userAgent = null,
         CancellationToken ct = default);
 
+    Task<ServiceResult<UserResponse>> UploadAvatarAsync(
+        string userId, Stream content, string fileName, string contentType,
+        CancellationToken ct = default);
+
     Task<ServiceResult> ToggleUserStatusAsync(
         string userId, ToggleUserStatusRequest request,
         string? ipAddress = null, string? userAgent = null,

@@ -17,7 +17,6 @@ public static class IdentityModule
         services.AddScoped<IAuthService,        AuthService>();
 
         // Department & Team
-        services.AddScoped<IDepartmentRepository, DepartmentRepository>();
         services.AddScoped<ITeamRepository,       TeamRepository>();
         services.AddScoped<IDepartmentService,    DepartmentService>();
         services.AddScoped<ITeamService,          TeamService>();
@@ -31,12 +30,10 @@ public static class IdentityModule
         using var scope  = services.CreateScope();
         var userRepo     = scope.ServiceProvider.GetRequiredService<IUserRepository>();
         var auditLogRepo = scope.ServiceProvider.GetRequiredService<IAuditLogRepository>();
-        var deptRepo     = scope.ServiceProvider.GetRequiredService<IDepartmentRepository>();
         var teamRepo     = scope.ServiceProvider.GetRequiredService<ITeamRepository>();
 
         await userRepo.EnsureIndexesAsync();
         await auditLogRepo.EnsureIndexesAsync();
-        await deptRepo.EnsureIndexesAsync();
         await teamRepo.EnsureIndexesAsync();
     }
 }

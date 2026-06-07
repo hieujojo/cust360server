@@ -14,17 +14,20 @@ public sealed class PipelineSettingsController : ControllerBase
 {
     private readonly IPipelineStageService _pipelineStageService;
 
-    public PipelineSettingsController(IPipelineStageService pipelineStageService)
-        => _pipelineStageService = pipelineStageService;
+    public PipelineSettingsController(IPipelineStageService pipelineStageService) =>
+        _pipelineStageService = pipelineStageService;
 
     [HttpGet]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    public async Task<IActionResult> Get(CancellationToken ct)
-        => Ok(await _pipelineStageService.GetAsync(ct));
+    public async Task<IActionResult> Get(CancellationToken ct) =>
+        Ok(await _pipelineStageService.GetAsync(ct));
 
     [HttpPost]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    public async Task<IActionResult> Create([FromBody] UpsertPipelineStageRequest request, CancellationToken ct)
+    public async Task<IActionResult> Create(
+        [FromBody] UpsertPipelineStageRequest request,
+        CancellationToken ct
+    )
     {
         var result = await _pipelineStageService.CreateAsync(request, ct);
         return result.IsSuccess
@@ -34,7 +37,11 @@ public sealed class PipelineSettingsController : ControllerBase
 
     [HttpPut("{id}")]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    public async Task<IActionResult> Update(string id, [FromBody] UpsertPipelineStageRequest request, CancellationToken ct)
+    public async Task<IActionResult> Update(
+        string id,
+        [FromBody] UpsertPipelineStageRequest request,
+        CancellationToken ct
+    )
     {
         var result = await _pipelineStageService.UpdateAsync(id, request, ct);
         return result.IsSuccess
@@ -54,7 +61,10 @@ public sealed class PipelineSettingsController : ControllerBase
 
     [HttpPut("reorder")]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    public async Task<IActionResult> Reorder([FromBody] ReorderPipelineStagesRequest request, CancellationToken ct)
+    public async Task<IActionResult> Reorder(
+        [FromBody] ReorderPipelineStagesRequest request,
+        CancellationToken ct
+    )
     {
         var result = await _pipelineStageService.ReorderAsync(request, ct);
         return result.IsSuccess
@@ -62,4 +72,3 @@ public sealed class PipelineSettingsController : ControllerBase
             : BadRequest(new { result.ErrorCode, result.ErrorMessage });
     }
 }
-

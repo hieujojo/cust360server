@@ -9,7 +9,6 @@ using CRM.Api.Modules.Interfaces.Services;
 using CRM.Api.Modules.Mappers;
 using CRM.Api.Modules.Models;
 using CRM.Api.Shared.Models;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using MongoDB.Driver;
@@ -63,6 +62,10 @@ public sealed class AuthService : IAuthService
                 "ACCOUNT_INACTIVE",
                 "Tài khoản đã bị vô hiệu hóa. Vui lòng liên hệ Admin."
             );
+
+        var loginTime = DateTime.UtcNow;
+        await _userRepo.SetLastLoginAsync(user.id, loginTime, ct);
+        user.lastLoginAt = loginTime;
 
         var expiresAt = DateTime.UtcNow.AddMinutes(_jwtSettings.AccessTokenExpiryMinutes);
         var accessToken = GenerateAccessToken(

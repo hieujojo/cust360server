@@ -6,7 +6,7 @@ namespace CRM.Api.Modules.Mappers;
 public static class CustomerMapper
 {
     public static CustomerResponse ToResponse(
-        this Customer c, User? owner = null, Department? dept = null)
+        this Customer c, User? owner = null, OrgDepartment? dept = null)
         => new()
         {
             Id             = c.id,
@@ -44,7 +44,7 @@ public static class CustomerMapper
         };
 
     public static CustomerInfoTabResponse ToInfoTab(
-        this Customer c, User? owner = null, Department? dept = null)
+        this Customer c, User? owner = null, OrgDepartment? dept = null)
         => new()
         {
             Id             = c.id,

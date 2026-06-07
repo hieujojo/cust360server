@@ -92,12 +92,15 @@ public sealed class ResetPasswordRequest
     public string NewPassword { get; set; } = string.Empty;
 }
 
-/// <summary>GET /api/admin/users</summary>
+/// <summary>GET /api/settings/users</summary>
 public sealed class GetUsersRequest
 {
     public int? Role { get; set; }
     public string? DepartmentId { get; set; }
     public bool? IsActive { get; set; }
+
+    /// <summary>active | inactive | pending</summary>
+    public string? Status { get; set; }
 
     /// <summary>Lọc theo team.</summary>
     public string? TeamId { get; set; }

@@ -1,8 +1,8 @@
-using MongoDB.Driver;
 using CRM.Api.Infrastructure.MongoDB;
 using CRM.Api.Modules.Interfaces.Repositories;
 using CRM.Api.Modules.Models;
 using CRM.Api.Shared.Models;
+using MongoDB.Driver;
 
 namespace CRM.Api.Modules.Repositories;
 
@@ -21,17 +21,20 @@ public sealed class UserRepository : BaseRepository<User>, IUserRepository
 
     /// <summary>Tìm user theo ID. Filter: organizationId + isDeleted=false + id</summary>
     public new async Task<User?> FindByIdAsync(string id, CancellationToken ct = default)
-{
-    if (!MongoDB.Bson.ObjectId.TryParse(id, out var objectId)) return null;
+    {
+        if (!MongoDB.Bson.ObjectId.TryParse(id, out var objectId))
+            return null;
 
-    var filter = Builders<User>.Filter.Eq("_id", objectId)
-               & Builders<User>.Filter.Eq(x => x.isDeleted, false);
+        var filter =
+            Builders<User>.Filter.Eq("_id", objectId)
+            & Builders<User>.Filter.Eq(x => x.isDeleted, false);
 
-    return await Collection.Find(filter).FirstOrDefaultAsync(ct);
-}
+        return await Collection.Find(filter).FirstOrDefaultAsync(ct);
+    }
+
     /// <summary>Tìm user theo email (lowercase, unique trong org). Use case: Login, validate email.</summary>
     /// <summary>
-    /// Tìm user theo email (lowercase). 
+    /// Tìm user theo email (lowercase).
     /// KHÔNG filter theo org vì dùng cho login (chưa có org context).
     /// Nếu có nhiều user cùng email ở các org khác nhau, trả về user đầu tiên.
     /// TODO: Phase 2 - Thêm subdomain hoặc organizationId vào login request.
@@ -46,14 +49,21 @@ public sealed class UserRepository : BaseRepository<User>, IUserRepository
     /// Danh sách users có filter + pagination. Trả về (Items, Total).
     /// Filter: role, departmentId, isActive, search (tìm trong displayName hoặc email).
     /// Sort: createdAt DESC (mới nhất trước).
-    /// 
+    ///
     /// DEPARTMENT SCOPING:
     /// - Owner/Admin: thấy tất cả users trong org
     /// - User (role=3): chỉ thấy users trong department của mình
     /// </summary>
     public async Task<(List<User> Items, long Total)> FindPagedAsync(
-        int? role, string? departmentId, bool? isActive, string? search,
-        int page, int pageSize, CancellationToken ct = default)
+        int? role,
+        string? departmentId,
+        bool? isActive,
+        string? status,
+        string? search,
+        int page,
+        int pageSize,
+        CancellationToken ct = default
+    )
     {
         // Base filter với department scoping
         var filter = Builders<User>.Filter.Empty;
@@ -64,15 +74,30 @@ public sealed class UserRepository : BaseRepository<User>, IUserRepository
         if (!string.IsNullOrWhiteSpace(departmentId))
             filter &= Builders<User>.Filter.Eq(x => x.departmentId, departmentId);
 
-        if (isActive.HasValue)
+        if (!string.IsNullOrWhiteSpace(status))
+        {
+            filter &= status.ToLowerInvariant() switch
+            {
+                "active" => Builders<User>.Filter.Eq(x => x.isActive, true)
+                    & Builders<User>.Filter.Ne(x => x.lastLoginAt, null),
+                "inactive" => Builders<User>.Filter.Eq(x => x.isActive, false),
+                "pending" => Builders<User>.Filter.Eq(x => x.isActive, true)
+                    & Builders<User>.Filter.Eq(x => x.lastLoginAt, null),
+                _ => Builders<User>.Filter.Empty,
+            };
+        }
+        else if (isActive.HasValue)
+        {
             filter &= Builders<User>.Filter.Eq(x => x.isActive, isActive.Value);
+        }
 
         if (!string.IsNullOrWhiteSpace(search))
         {
             var regex = new MongoDB.Bson.BsonRegularExpression(search, "i");
             filter &= Builders<User>.Filter.Or(
                 Builders<User>.Filter.Regex(x => x.displayName, regex),
-                Builders<User>.Filter.Regex(x => x.email, regex));
+                Builders<User>.Filter.Regex(x => x.email, regex)
+            );
         }
 
         // Apply department scoping
@@ -112,8 +137,27 @@ public sealed class UserRepository : BaseRepository<User>, IUserRepository
     }
 
     /// <summary>Đếm tổng số users trong org (bao gồm cả inactive). Use case: Dashboard, statistics.</summary>
-    public async Task<long> CountAllAsync(CancellationToken ct = default)
-        => await Collection.CountDocumentsAsync(OrgFilter, cancellationToken: ct);
+    public async Task<long> CountAllAsync(CancellationToken ct = default) =>
+        await Collection.CountDocumentsAsync(OrgFilter, cancellationToken: ct);
+
+    public async Task<long> CountByDepartmentAsync(
+        string departmentId,
+        CancellationToken ct = default
+    )
+    {
+        var filter = OrgFilter & Builders<User>.Filter.Eq(x => x.departmentId, departmentId);
+        return await Collection.CountDocumentsAsync(filter, cancellationToken: ct);
+    }
+
+    public async Task SetLastLoginAsync(string id, DateTime loginAt, CancellationToken ct = default)
+    {
+        var filter = Builders<User>.Filter.Eq(x => x.id, id);
+        var update = Builders<User>
+            .Update.Set(x => x.lastLoginAt, loginAt)
+            .Set(x => x.updatedAt, DateTime.UtcNow);
+
+        await Collection.UpdateOneAsync(filter, update, cancellationToken: ct);
+    }
 
     // ─── WRITE ───────────────────────────────────────────────────────────────
 
@@ -125,7 +169,11 @@ public sealed class UserRepository : BaseRepository<User>, IUserRepository
     }
 
     /// <summary>Cập nhật user theo ID. Filter: organizationId + id.</summary>
-    public new async Task UpdateAsync(string id, UpdateDefinition<User> update, CancellationToken ct = default)
+    public new async Task UpdateAsync(
+        string id,
+        UpdateDefinition<User> update,
+        CancellationToken ct = default
+    )
     {
         var filter = OrgFilter & Builders<User>.Filter.Eq(x => x.id, id);
         await Collection.UpdateOneAsync(filter, update, cancellationToken: ct);
@@ -135,8 +183,8 @@ public sealed class UserRepository : BaseRepository<User>, IUserRepository
     public async Task SetActiveStatusAsync(string id, bool isActive, CancellationToken ct = default)
     {
         var filter = OrgFilter & Builders<User>.Filter.Eq(x => x.id, id);
-        var update = Builders<User>.Update
-            .Set(x => x.isActive,  isActive)
+        var update = Builders<User>
+            .Update.Set(x => x.isActive, isActive)
             .Set(x => x.updatedAt, DateTime.UtcNow);
 
         await Collection.UpdateOneAsync(filter, update, cancellationToken: ct);
@@ -152,13 +200,18 @@ public sealed class UserRepository : BaseRepository<User>, IUserRepository
     }
 
     /// <summary>Lưu reset token + expiry vào user.</summary>
-    public async Task SetResetTokenAsync(string id, string token, DateTime expiry, CancellationToken ct = default)
+    public async Task SetResetTokenAsync(
+        string id,
+        string token,
+        DateTime expiry,
+        CancellationToken ct = default
+    )
     {
         var filter = Builders<User>.Filter.Eq(x => x.id, id);
-        var update = Builders<User>.Update
-            .Set(x => x.passwordResetToken,  token)
+        var update = Builders<User>
+            .Update.Set(x => x.passwordResetToken, token)
             .Set(x => x.passwordResetExpiry, expiry)
-            .Set(x => x.updatedAt,           DateTime.UtcNow);
+            .Set(x => x.updatedAt, DateTime.UtcNow);
 
         await Collection.UpdateOneAsync(filter, update, cancellationToken: ct);
     }
@@ -167,8 +220,8 @@ public sealed class UserRepository : BaseRepository<User>, IUserRepository
     public async Task ClearResetTokenAsync(string id, CancellationToken ct = default)
     {
         var filter = Builders<User>.Filter.Eq(x => x.id, id);
-        var update = Builders<User>.Update
-            .Unset(x => x.passwordResetToken)
+        var update = Builders<User>
+            .Update.Unset(x => x.passwordResetToken)
             .Unset(x => x.passwordResetExpiry)
             .Set(x => x.updatedAt, DateTime.UtcNow);
 
@@ -188,28 +241,35 @@ public sealed class UserRepository : BaseRepository<User>, IUserRepository
         var indexes = new[]
         {
             new CreateIndexModel<User>(
-                Builders<User>.IndexKeys.Ascending(x => x.organizationId).Ascending(x => x.employeeCode),
-                new CreateIndexOptions { Unique = true, Name = "org_employee_code_unique" }),
-
+                Builders<User>
+                    .IndexKeys.Ascending(x => x.organizationId)
+                    .Ascending(x => x.employeeCode),
+                new CreateIndexOptions { Unique = true, Name = "org_employee_code_unique" }
+            ),
             new CreateIndexModel<User>(
                 Builders<User>.IndexKeys.Ascending(x => x.organizationId).Ascending(x => x.email),
-                new CreateIndexOptions { Unique = true, Name = "org_email_unique" }),
-
+                new CreateIndexOptions { Unique = true, Name = "org_email_unique" }
+            ),
             new CreateIndexModel<User>(
                 Builders<User>.IndexKeys.Ascending(x => x.organizationId).Ascending(x => x.role),
-                new CreateIndexOptions { Name = "org_role" }),
-
+                new CreateIndexOptions { Name = "org_role" }
+            ),
             new CreateIndexModel<User>(
-                Builders<User>.IndexKeys.Ascending(x => x.organizationId).Ascending(x => x.departmentId),
-                new CreateIndexOptions { Name = "org_department" }),
-
+                Builders<User>
+                    .IndexKeys.Ascending(x => x.organizationId)
+                    .Ascending(x => x.departmentId),
+                new CreateIndexOptions { Name = "org_department" }
+            ),
             new CreateIndexModel<User>(
                 Builders<User>.IndexKeys.Ascending(x => x.organizationId).Ascending(x => x.teamId),
-                new CreateIndexOptions { Name = "org_team" }),
-
+                new CreateIndexOptions { Name = "org_team" }
+            ),
             new CreateIndexModel<User>(
-                Builders<User>.IndexKeys.Ascending(x => x.organizationId).Ascending(x => x.isActive),
-                new CreateIndexOptions { Name = "org_active" }),
+                Builders<User>
+                    .IndexKeys.Ascending(x => x.organizationId)
+                    .Ascending(x => x.isActive),
+                new CreateIndexOptions { Name = "org_active" }
+            ),
         };
 
         await Collection.Indexes.CreateManyAsync(indexes, ct);
