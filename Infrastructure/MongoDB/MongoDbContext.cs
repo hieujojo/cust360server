@@ -1,7 +1,7 @@
-using MongoDB.Driver;
-using MongoDB.Bson;
-using Microsoft.Extensions.Options;
 using CRM.Api.Infrastructure.Settings;
+using Microsoft.Extensions.Options;
+using MongoDB.Bson;
+using MongoDB.Driver;
 
 namespace CRM.Api.Infrastructure.MongoDB;
 
@@ -14,28 +14,29 @@ public sealed class MongoDbContext
     public MongoDbContext(IOptions<MongoDbSettings> options)
     {
         var settings = MongoClientSettings.FromConnectionString(options.Value.ConnectionString);
-        
+
         // Cấu hình TLS/SSL cho MongoDB Atlas - tương thích Windows
         settings.SslSettings = new SslSettings
         {
-            EnabledSslProtocols = System.Security.Authentication.SslProtocols.Tls12 | 
-                                  System.Security.Authentication.SslProtocols.Tls13
+            EnabledSslProtocols =
+                System.Security.Authentication.SslProtocols.Tls12
+                | System.Security.Authentication.SslProtocols.Tls13,
         };
-        
+
         // Tăng timeout cho kết nối ban đầu
         settings.ServerSelectionTimeout = TimeSpan.FromSeconds(30);
         settings.ConnectTimeout = TimeSpan.FromSeconds(30);
-        
+
         // Retry logic cho kết nối
         settings.RetryWrites = true;
         settings.RetryReads = true;
-        
+
         _client = new MongoClient(settings);
-        _database  = _client.GetDatabase(options.Value.DatabaseName);
+        _database = _client.GetDatabase(options.Value.DatabaseName);
     }
 
-    public IMongoCollection<T> GetCollection<T>(string collectionName)
-        => _database.GetCollection<T>(collectionName);
+    public IMongoCollection<T> GetCollection<T>(string collectionName) =>
+        _database.GetCollection<T>(collectionName);
 
     /// <summary>Kiểm tra kết nối MongoDB.</summary>
     public async Task<bool> TestConnectionAsync(CancellationToken ct = default)
@@ -43,7 +44,7 @@ public sealed class MongoDbContext
         try
         {
             await _database.RunCommandAsync<BsonDocument>(
-                new BsonDocument("ping", 1), 
+                new BsonDocument("ping", 1),
                 cancellationToken: ct
             );
             return true;

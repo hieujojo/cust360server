@@ -7,15 +7,17 @@ namespace CRM.Api.Infrastructure.Storage;
 
 public sealed class CloudinaryStorageService : ICloudinaryStorageService
 {
-    private readonly Cloudinary _cloudinary;
+    private readonly Cloudinary? _cloudinary;
 
     public CloudinaryStorageService(IOptions<CloudinarySettings> options)
     {
         var settings = options.Value;
-        var account = new Account(settings.CloudName, settings.ApiKey, settings.ApiSecret);
-
-        _cloudinary = new Cloudinary(account);
-        _cloudinary.Api.Secure = true;
+        if (!string.IsNullOrWhiteSpace(settings.CloudName))
+        {
+            var account = new Account(settings.CloudName, settings.ApiKey, settings.ApiSecret);
+            _cloudinary = new Cloudinary(account);
+            _cloudinary.Api.Secure = true;
+        }
     }
 
     public async Task<string> UploadAsync(
@@ -34,6 +36,11 @@ public sealed class CloudinaryStorageService : ICloudinaryStorageService
             UniqueFilename = true,
             Overwrite = false,
         };
+
+        if (_cloudinary == null)
+        {
+            throw new InvalidOperationException("Cloudinary is not configured.");
+        }
 
         var uploadResult = await _cloudinary.UploadAsync(uploadParams, ct);
 
@@ -85,7 +92,10 @@ public sealed class CloudinaryStorageService : ICloudinaryStorageService
 
             var deletionParams = new DeletionParams(publicId) { ResourceType = ResourceType.Image };
 
-            await _cloudinary.DestroyAsync(deletionParams);
+            if (_cloudinary != null)
+            {
+                await _cloudinary.DestroyAsync(deletionParams);
+            }
         }
         catch
         {

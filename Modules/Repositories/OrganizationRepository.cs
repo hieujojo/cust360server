@@ -30,6 +30,8 @@ public sealed class OrganizationRepository : BaseRepository<Organization>, IOrga
         var existing = await GetCurrentAsync(ct);
         if (existing != null)
         {
+            existing.departments ??= [];
+            existing.pipelineStages ??= [];
             return existing;
         }
 
@@ -137,6 +139,6 @@ public sealed class OrganizationRepository : BaseRepository<Organization>, IOrga
     public async Task<OrgDepartment?> GetDepartmentByIdAsync(string id, CancellationToken ct = default)
     {
         var org = await GetOrCreateCurrentAsync(ct);
-        return org.departments.FirstOrDefault(d => d.id == id);
+        return org.departments?.FirstOrDefault(d => d.id == id);
     }
 }

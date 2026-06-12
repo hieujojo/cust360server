@@ -13,9 +13,12 @@ public sealed class ErrorHandlerMiddleware
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
     };
 
+    private readonly ILogger<ErrorHandlerMiddleware> _logger;
+
     public ErrorHandlerMiddleware(RequestDelegate next, ILogger<ErrorHandlerMiddleware> logger)
     {
         _next = next;
+        _logger = logger;
     }
 
     public async Task InvokeAsync(HttpContext context)
@@ -26,6 +29,7 @@ public sealed class ErrorHandlerMiddleware
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Unhandled exception occurred during request processing.");
             await HandleExceptionAsync(context, ex);
         }
     }

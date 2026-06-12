@@ -10,10 +10,12 @@ namespace CRM.Api.Infrastructure.Email;
 public sealed class EmailService : IEmailService
 {
     private readonly EmailSettings _settings;
+    private readonly ILogger<EmailService> _logger;
 
     public EmailService(IOptions<EmailSettings> options, ILogger<EmailService> logger)
     {
         _settings = options.Value;
+        _logger   = logger;
     }
 
     public async Task SendAccountCreatedAsync(
@@ -117,7 +119,11 @@ public sealed class EmailService : IEmailService
             message.To.Add(toEmail);
 
             await client.SendMailAsync(message, ct);
+            _logger.LogInformation("Email sent to {To} | subject: {Subject}", toEmail, subject);
         }
-        catch (Exception) { }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to send email to {To} | subject: {Subject}", toEmail, subject);
+        }
     }
 }

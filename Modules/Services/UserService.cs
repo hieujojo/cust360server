@@ -337,7 +337,7 @@ public sealed class UserService : IUserService
         if (!string.IsNullOrEmpty(user.departmentId))
         {
             var org = await _organizationRepo.GetOrCreateCurrentAsync(ct);
-            deptName = org.departments.FirstOrDefault(d => d.id == user.departmentId)?.name;
+            deptName = org.departments?.FirstOrDefault(d => d.id == user.departmentId)?.name;
         }
 
         if (!string.IsNullOrEmpty(user.teamId))
