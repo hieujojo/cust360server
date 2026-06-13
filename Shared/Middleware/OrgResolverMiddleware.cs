@@ -46,6 +46,8 @@ public sealed class OrgResolverMiddleware
                 );
                 return;
             }
+
+            currentUser.DisplayName = dbUser.displayName;
         }
 
         await _next(context);

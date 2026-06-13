@@ -9,6 +9,7 @@ public sealed class CurrentUser
     public string? DepartmentId { get; set; }
     public string? TeamId { get; set; }
     public string Email { get; set; } = string.Empty;
+    public string DisplayName { get; set; } = string.Empty;
 
     public bool IsAuthenticated => !string.IsNullOrEmpty(UserId);
     public bool IsAdminOrAbove => Role <= 2;
