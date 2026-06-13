@@ -74,6 +74,7 @@ public sealed class CustomerResponse
     public string? Phone { get; init; }
     public string OwnerId { get; init; } = string.Empty;
     public string OwnerName { get; init; } = string.Empty;
+    public string? OwnerAvatarUrl { get; init; }
     public string DepartmentId { get; init; } = string.Empty;
     public string DepartmentName { get; init; } = string.Empty;
     public List<ContactResponse> Contacts { get; init; } = [];
@@ -91,6 +92,7 @@ public sealed class CustomerSummaryResponse
     public string Status { get; init; } = string.Empty;
     public string Source { get; init; } = string.Empty;
     public string OwnerName { get; init; } = string.Empty;
+    public string? OwnerAvatarUrl { get; init; }
     public string DepartmentName { get; init; } = string.Empty;
     public string? Email { get; init; }
     public string? Phone { get; init; }
@@ -183,6 +185,7 @@ public sealed class CustomerInfoTabResponse
     public string? Phone { get; init; }
     public string OwnerId { get; init; } = string.Empty;
     public string OwnerName { get; init; } = string.Empty;
+    public string? OwnerAvatarUrl { get; init; }
     public string DepartmentId { get; init; } = string.Empty;
     public string DepartmentName { get; init; } = string.Empty;
     public Dictionary<string, object>? CustomFields { get; init; }

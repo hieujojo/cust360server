@@ -45,7 +45,8 @@ builder
     .AddCustomerModule()
     .AddSalesModule()
     .AddSettingsModule()
-    .AddActivityModule(builder.Configuration);
+    .AddActivityModule(builder.Configuration)
+    .AddFeedbackModule();
 
 builder.Services.AddHealthChecks();
 
@@ -58,6 +59,7 @@ await app.Services.TestMongoDbConnectionAsync();
 
 await app.Services.EnsureIdentityIndexesAsync();
 await app.Services.EnsureCustomerIndexesAsync();
+await app.Services.EnsureFeedbackIndexesAsync();
 await app.Services.EnsureSalesIndexesAsync();
 await app.Services.EnsureActivityIndexesAsync();
 
