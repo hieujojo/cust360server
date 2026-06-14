@@ -18,6 +18,7 @@ public interface ICustomerService
     // ─── List & Search ────────────────────────────────────────────────────────
     Task<CustomerListResponse> GetListAsync(CustomerListFilterRequest filter, CancellationToken ct = default);
     Task<CustomerSearchResponse> SearchAsync(string query, CancellationToken ct = default);
+    Task<CustomerStatsResponse> GetStatsAsync(CancellationToken ct = default);
 
     // ─── 360 View ─────────────────────────────────────────────────────────────
     Task<ServiceResult<Customer360ViewResponse>> Get360ViewAsync(string id, CancellationToken ct = default);

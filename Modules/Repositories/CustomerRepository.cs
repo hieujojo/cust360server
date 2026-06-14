@@ -89,6 +89,16 @@ public sealed class CustomerRepository : BaseRepository<Customer>, ICustomerRepo
         return (items, total);
     }
 
+    public async Task<long> CountAsync(string? status = null, CancellationToken ct = default)
+    {
+        var additionalFilter = Builders<Customer>.Filter.Empty;
+        if (!string.IsNullOrEmpty(status))
+            additionalFilter &= Builders<Customer>.Filter.Eq(c => c.status, status);
+
+        var filter = DepartmentScopedFilter & additionalFilter;
+        return await Collection.CountDocumentsAsync(filter, cancellationToken: ct);
+    }
+
     // ─── Contact Operations ───────────────────────────────────────────────────
 
     public async Task<bool> AddContactAsync(string customerId, Contact contact, CancellationToken ct = default)

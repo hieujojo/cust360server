@@ -117,6 +117,15 @@ public sealed class PaginationMetadata
     public bool HasNext { get; init; }
 }
 
+/// <summary>Response cho GET /api/customers/stats.</summary>
+public sealed class CustomerStatsResponse
+{
+    public long Total { get; init; }
+    public long Lead { get; init; }
+    public long Active { get; init; }
+    public long Churned { get; init; }
+}
+
 /// <summary>Response cho GET /api/customers/search.</summary>
 public sealed class CustomerSearchResponse
 {

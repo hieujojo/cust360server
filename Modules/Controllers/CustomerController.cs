@@ -93,6 +93,15 @@ public sealed class CustomerController : ControllerBase
         return Ok(result);
     }
 
+    /// <summary>Thống kê số lượng khách hàng theo trạng thái (dùng cho stat cards trên trang Customers).</summary>
+    [HttpGet("stats")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetStats(CancellationToken ct)
+    {
+        var result = await _customerService.GetStatsAsync(ct);
+        return Ok(result);
+    }
+
     /// <summary>Tìm kiếm toàn văn (Atlas Search).</summary>
     [HttpGet("search")]
     [ProducesResponseType(StatusCodes.Status200OK)]

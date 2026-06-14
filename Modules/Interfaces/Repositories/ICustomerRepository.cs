@@ -24,6 +24,9 @@ public interface ICustomerRepository
         int page, int pageSize,
         CancellationToken ct = default);
 
+    /// <summary>Đếm documents theo status (tôn trọng department scoping). Null = đếm tất cả.</summary>
+    Task<long> CountAsync(string? status = null, CancellationToken ct = default);
+
     // ─── Contact Operations (embedded array) ──────────────────────────────────
     Task<bool> AddContactAsync(string customerId, Contact contact, CancellationToken ct = default);
     Task<bool> UpdateContactAsync(string customerId, string contactId, UpdateDefinition<Customer> update, CancellationToken ct = default);

@@ -288,6 +288,27 @@ public sealed class CustomerService : ICustomerService
         return await _searchService.SearchAsync(query, 50, ct);
     }
 
+    public async Task<CustomerStatsResponse> GetStatsAsync(CancellationToken ct = default)
+    {
+        // Chạy song song 4 lầnh đếm cùng lúc — giảm từ 4 round-trips xuống 1
+        var (totalTask, leadTask, activeTask, churnedTask) = (
+            _customerRepo.CountAsync(null, ct),
+            _customerRepo.CountAsync("Lead", ct),
+            _customerRepo.CountAsync("Active", ct),
+            _customerRepo.CountAsync("Churned", ct)
+        );
+
+        await Task.WhenAll(totalTask, leadTask, activeTask, churnedTask);
+
+        return new CustomerStatsResponse
+        {
+            Total   = totalTask.Result,
+            Lead    = leadTask.Result,
+            Active  = activeTask.Result,
+            Churned = churnedTask.Result,
+        };
+    }
+
     // ─── 360 View ─────────────────────────────────────────────────────────────
 
     public async Task<ServiceResult<Customer360ViewResponse>> Get360ViewAsync(string id, CancellationToken ct = default)
